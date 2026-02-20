@@ -1,11 +1,9 @@
 import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
-import { GLTFLoader }    from 'three/addons/loaders/GLTFLoader.js'
-import { DRACOLoader }   from 'three/addons/loaders/DRACOLoader.js'
-import { FBXLoader }     from 'three/addons/loaders/FBXLoader.js'
-import { STLLoader }     from 'three/addons/loaders/STLLoader.js'
-import { TDSLoader }     from 'three/addons/loaders/TDSLoader.js'
-import { OBJLoader }     from 'three/addons/loaders/OBJLoader.js'
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
+import { STLLoader }  from 'three/addons/loaders/STLLoader.js'
+import { TDSLoader }  from 'three/addons/loaders/TDSLoader.js'
+import { OBJLoader }  from 'three/addons/loaders/OBJLoader.js'
 import GUI from 'lil-gui'
 
 import hologramVertShader from './shaders/vert.glsl'
@@ -783,9 +781,7 @@ function loadModel(url) {
     }
 
     if (ext === 'glb' || ext === 'gltf') {
-        gltfLoader.load(url, d => onModelLoaded(d.scene), onProgress, onError)
-    } else if (ext === 'fbx') {
-        new FBXLoader().load(url, obj => onModelLoaded(obj), onProgress, onError)
+        new GLTFLoader().load(url, d => onModelLoaded(d.scene), onProgress, onError)
     } else if (ext === 'stl') {
         new STLLoader().load(url, geo => onModelLoaded(new THREE.Mesh(geo, material)), onProgress, onError)
     } else if (ext === '3ds') {
@@ -801,15 +797,7 @@ function loadModel(url) {
  * ==================== NASA MODEL LIST ====================
  */
 const BASE_RAW = 'https://raw.githubusercontent.com/nasa/NASA-3D-Resources/master/'
-const EXTS     = ['glb', 'gltf', 'fbx', 'stl', 'obj', '3ds']
-
-// DRACOLoader — needed for Draco-compressed GLB/GLTF (many NASA models)
-// Uses the decoder from the three.js CDN so no extra build step needed
-const dracoLoader = new DRACOLoader()
-dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/')
-
-const gltfLoader = new GLTFLoader()
-gltfLoader.setDRACOLoader(dracoLoader)
+const EXTS     = ['glb', 'gltf', 'stl', 'obj', '3ds']
 
 const CURATED = [
     { name: 'Curiosity Rover',             path: 'Models/Curiosity/MSL_Rover.STL' },
@@ -1020,45 +1008,172 @@ wireToolbarBtn('btn-autorotate', () => {
 })
 
 /**
- * ==================== GUI (functional panels only) ====================
+ * ==================== GUI ====================
  */
-gui.title('Hologram Viewer')
 
-// — Visualization —
+// System Info
+const systemFolder = gui.addFolder('📡 System Info')
+systemFolder.add(robotConfig, 'name').disable()
+systemFolder.add(robotConfig, 'dof').name('Degrees of Freedom').disable()
+systemFolder.add(robotConfig, 'massKg').name('Mass (kg)').min(1).max(500).step(1)
+systemFolder.add(robotConfig, 'payload').name('Payload (kg)').min(0).max(100).step(1)
+systemFolder.add(robotConfig, 'reach').name('Reach (m)').min(0.1).max(20).step(0.1)
+
+// Coordinate Frames
+const frameFolder = gui.addFolder('🎯 Coordinate Frames')
+frameFolder.add(frameParameters, 'showWorldFrame').name('World Frame')
+    .onChange(() => { worldFrame.visible = frameParameters.showWorldFrame })
+frameFolder.add(frameParameters, 'showBaseFrame').name('Base Frame')
+    .onChange(() => { baseFrame.visible = frameParameters.showBaseFrame })
+frameFolder.add(frameParameters, 'showToolFrame').name('Tool Frame')
+    .onChange(() => { toolFrame.visible = frameParameters.showToolFrame })
+frameFolder.add(frameParameters, 'showTargetFrame').name('Target Frame')
+    .onChange(() => { targetFrame.visible = frameParameters.showTargetFrame })
+frameFolder.add(frameParameters, 'frameScale').min(0.1).max(3).step(0.1).name('Frame Scale')
+frameFolder.add(frameParameters, 'transformMode', ['world', 'base', 'tool']).name('Transform Mode')
+
+// Kinematics
+const kinematicsFolder = gui.addFolder('⚙️ Kinematics')
+kinematicsFolder.add(kinematicsParameters, 'mode', ['forward', 'inverse', 'teach']).name('Mode')
+kinematicsFolder.add(kinematicsParameters, 'positionX').min(-10).max(10).step(0.001).name('X (m)')
+    .onChange(() => { if (customModel) customModel.position.x = kinematicsParameters.positionX })
+kinematicsFolder.add(kinematicsParameters, 'positionY').min(-10).max(10).step(0.001).name('Y (m)')
+    .onChange(() => { if (customModel) customModel.position.y = kinematicsParameters.positionY })
+kinematicsFolder.add(kinematicsParameters, 'positionZ').min(-10).max(10).step(0.001).name('Z (m)')
+    .onChange(() => { if (customModel) customModel.position.z = kinematicsParameters.positionZ })
+kinematicsFolder.add(kinematicsParameters, 'roll').min(-180).max(180).step(0.01).name('Roll (°)')
+kinematicsFolder.add(kinematicsParameters, 'pitch').min(-180).max(180).step(0.01).name('Pitch (°)')
+kinematicsFolder.add(kinematicsParameters, 'yaw').min(-180).max(180).step(0.01).name('Yaw (°)')
+kinematicsFolder.add(kinematicsParameters, 'ikSolver', ['jacobian', 'ccd', 'fabrik']).name('IK Solver')
+kinematicsFolder.add(kinematicsParameters, 'ikIterations').min(10).max(500).step(10).name('IK Iterations')
+kinematicsFolder.add(kinematicsParameters, 'ikTolerance').min(0.0001).max(0.1).step(0.0001).name('IK Tolerance')
+kinematicsFolder.add(kinematicsParameters, 'solveIK').name('🎯 Solve IK')
+kinematicsFolder.add(kinematicsParameters, 'computeFK').name('📐 Compute FK')
+kinematicsFolder.add(kinematicsParameters, 'singularityCheck').name('Singularity Check')
+kinematicsFolder.add(kinematicsParameters, 'resetPose').name('🔄 Reset Pose')
+kinematicsFolder.add(kinematicsParameters, 'snapTo90').name('↻ Snap to 90°')
+
+// Joints
+const jointFolder = gui.addFolder('🔧 Joint Control')
+for (let i = 1; i <= 6; i++) {
+    jointFolder.add(jointParameters, `joint${i}`).min(-180).max(180).step(0.01).name(`J${i} (°)`)
+}
+jointFolder.add(jointParameters, 'maxJointVel').min(1).max(360).step(1).name('Max Vel (°/s)')
+jointFolder.add(jointParameters, 'maxTorque').min(1).max(500).step(1).name('Max Torque (Nm)')
+jointFolder.add(jointParameters, 'interpolationType', ['linear', 'cubic', 'quintic']).name('Interpolation')
+jointFolder.add(jointParameters, 'interpolationTime').min(0.1).max(10).step(0.1).name('Interp Time (s)')
+jointFolder.add(jointParameters, 'enableJointLimits').name('Enable Limits')
+jointFolder.add(jointParameters, 'zeroAllJoints').name('🔄 Zero All')
+jointFolder.add(jointParameters, 'homePosition').name('🏠 Home Position')
+
+// Path Planning
+const pathFolder = gui.addFolder('🛣️ Path Planning')
+pathFolder.add(pathParameters, 'plannerType', ['linear', 'circular', 'bezier', 'rrt', 'prm']).name('Planner')
+pathFolder.add(pathParameters, 'numWaypoints').min(5).max(100).step(5).name('Waypoints')
+pathFolder.add(pathParameters, 'pathSmoothing').min(0).max(1).step(0.1).name('Smoothing')
+pathFolder.add(pathParameters, 'velocityProfile', ['trapezoidal', 's-curve', 'polynomial']).name('Velocity Profile')
+pathFolder.add(pathParameters, 'maxVelocity').min(0.1).max(10).step(0.1).name('Max Vel (m/s)')
+pathFolder.add(pathParameters, 'maxAcceleration').min(0.1).max(20).step(0.1).name('Max Accel (m/s²)')
+pathFolder.add(pathParameters, 'planPath').name('🗺️ Plan Path')
+pathFolder.add(pathParameters, 'executePath').name('Execute Path')
+pathFolder.add(pathParameters, 'loopPath').name('Loop Path')
+pathFolder.add(pathParameters, 'showPath').name('Show Path')
+    .onChange(() => { if (plannedPath) plannedPath.visible = pathParameters.showPath })
+pathFolder.addColor(pathParameters, 'pathColor').name('Path Color')
+
+// Collision Detection
+const collisionFolder = gui.addFolder('🛡️ Collision Detection')
+collisionFolder.add(collisionParameters, 'enabled').name('Enabled')
+collisionFolder.add(collisionParameters, 'checkSelfCollision').name('Self Collision')
+collisionFolder.add(collisionParameters, 'checkEnvironmentCollision').name('Environment Collision')
+collisionFolder.add(collisionParameters, 'collisionMargin').min(0).max(0.5).step(0.01).name('Margin (m)')
+collisionFolder.add(collisionParameters, 'showCollisionBounds').name('Show Bounds')
+collisionFolder.add(collisionParameters, 'addObstacle').name('➕ Add Obstacle')
+collisionFolder.add(collisionParameters, 'clearObstacles').name('🗑️ Clear Obstacles')
+collisionFolder.add(collisionParameters, 'obstacleCount').name('Obstacle Count').disable().listen()
+collisionFolder.add(collisionParameters, 'safetyStop').name('Safety Stop')
+
+// Sensors
+const sensorFolder = gui.addFolder('📡 Sensor Simulation')
+sensorFolder.add(sensorParameters, 'lidarEnabled').name('LIDAR Enabled')
+sensorFolder.add(sensorParameters, 'lidarRange').min(1).max(50).step(1).name('LIDAR Range (m)')
+sensorFolder.add(sensorParameters, 'lidarFOV').min(30).max(360).step(10).name('LIDAR FOV (°)')
+sensorFolder.add(sensorParameters, 'lidarVisualization').name('Show LIDAR')
+sensorFolder.add(sensorParameters, 'forceSensorEnabled').name('Force Sensor')
+sensorFolder.add(sensorParameters, 'forceThreshold').min(0).max(100).step(1).name('Force Threshold (N)')
+sensorFolder.add(sensorParameters, 'imuEnabled').name('IMU Enabled')
+sensorFolder.add(sensorParameters, 'cameraEnabled').name('Camera Enabled')
+sensorFolder.add(sensorParameters, 'showCameraFrustum').name('Show Frustum')
+
+// Dynamics
+const dynamicsFolder = gui.addFolder('⚡ Dynamics & Physics')
+dynamicsFolder.add(dynamicsParameters, 'enableGravity').name('Enable Gravity')
+dynamicsFolder.add(dynamicsParameters, 'gravityY').min(-20).max(0).step(0.1).name('Gravity (m/s²)')
+dynamicsFolder.add(dynamicsParameters, 'enableInertia').name('Enable Inertia')
+dynamicsFolder.add(dynamicsParameters, 'mass').min(1).max(200).step(1).name('Mass (kg)')
+dynamicsFolder.add(dynamicsParameters, 'friction').min(0).max(1).step(0.01).name('Friction')
+dynamicsFolder.add(dynamicsParameters, 'damping').min(0).max(1).step(0.01).name('Damping')
+dynamicsFolder.add(dynamicsParameters, 'showCenterOfMass').name('Show CoM')
+dynamicsFolder.add(dynamicsParameters, 'showForceVectors').name('Show Forces')
+
+// Motion Control
+const motionFolder = gui.addFolder('🎮 Motion Control')
+motionFolder.add(motionParameters, 'controlMode', ['position', 'velocity', 'torque', 'impedance']).name('Control Mode')
+motionFolder.add(motionParameters, 'enableAnimation').name('Enable Animation')
+motionFolder.add(motionParameters, 'animationType', ['none', 'rotation', 'linear', 'circular', 'sinusoidal']).name('Animation Type')
+motionFolder.add(motionParameters, 'angularVelocityX').min(-5).max(5).step(0.01).name('ω X (rad/s)')
+motionFolder.add(motionParameters, 'angularVelocityY').min(-5).max(5).step(0.01).name('ω Y (rad/s)')
+motionFolder.add(motionParameters, 'angularVelocityZ').min(-5).max(5).step(0.01).name('ω Z (rad/s)')
+motionFolder.add(motionParameters, 'followTrajectory').name('Follow Trajectory')
+motionFolder.add(motionParameters, 'trajectorySpeed').min(0.1).max(5).step(0.1).name('Traj Speed')
+
+// Workspace Analysis
+const workspaceFolder = gui.addFolder('📊 Workspace Analysis')
+workspaceFolder.add(workspaceParameters, 'workspaceType', ['reachable', 'dexterous', 'force']).name('Type')
+workspaceFolder.add(workspaceParameters, 'resolution').min(5).max(50).step(5).name('Resolution')
+workspaceFolder.add(workspaceParameters, 'computeWorkspace').name('🔍 Compute')
+workspaceFolder.add(workspaceParameters, 'showWorkspaceCloud').name('Show Cloud')
+    .onChange(() => { if (workspaceCloud) workspaceCloud.visible = workspaceParameters.showWorkspaceCloud })
+workspaceFolder.addColor(workspaceParameters, 'workspaceColor').name('Cloud Color')
+workspaceFolder.add(workspaceParameters, 'workspaceOpacity').min(0).max(1).step(0.05).name('Opacity')
+workspaceFolder.add(workspaceParameters, 'clearWorkspace').name('🗑️ Clear')
+
+// Visualization
 const visualFolder = gui.addFolder('👁️ Visualization')
-visualFolder.add(visualizationParameters, 'renderMode', ['hologram', 'solid', 'wireframe']).name('Render Mode')
+visualFolder.add(visualizationParameters, 'renderMode', ['hologram', 'solid', 'wireframe', 'points', 'xray']).name('Render Mode')
     .onChange(() => { material.wireframe = visualizationParameters.renderMode === 'wireframe' })
-visualFolder.addColor(visualizationParameters, 'materialColor').name('Hologram Color')
+visualFolder.addColor(visualizationParameters, 'materialColor').name('Color')
     .onChange(() => { material.uniforms.uColor.value.set(visualizationParameters.materialColor) })
+visualFolder.add(visualizationParameters, 'opacity').min(0).max(1).step(0.01).name('Opacity')
 visualFolder.add(visualizationParameters, 'aberrationStrength').min(0).max(10).step(0.1).name('Aberration')
     .onChange(() => { material.uniforms.uAberrationStrength.value = visualizationParameters.aberrationStrength })
 visualFolder.add(visualizationParameters, 'showBoundingBox').name('Bounding Box')
     .onChange(() => { if (boundingBoxHelper) boundingBoxHelper.visible = visualizationParameters.showBoundingBox })
+visualFolder.add(visualizationParameters, 'showBoundingSphere').name('Bounding Sphere')
+    .onChange(() => { if (boundingSphereHelper) boundingSphereHelper.visible = visualizationParameters.showBoundingSphere })
 visualFolder.add(visualizationParameters, 'showLocalAxes').name('Local Axes')
     .onChange(() => { if (localAxesHelper) localAxesHelper.visible = visualizationParameters.showLocalAxes })
+visualFolder.add(visualizationParameters, 'showTrajectory').name('Trajectory')
+visualFolder.add(visualizationParameters, 'trajectoryLength').min(10).max(1000).step(10).name('Traj Length')
+visualFolder.add(visualizationParameters, 'showVelocityVectors').name('Velocity Vectors')
 visualFolder.add(visualizationParameters, 'showGrid').name('Grid')
     .onChange(() => { gridHelper.visible = visualizationParameters.showGrid })
-visualFolder.add(visualizationParameters, 'showOrigin').name('Origin Axes')
+visualFolder.add(visualizationParameters, 'showOrigin').name('Origin')
     .onChange(() => { axesHelper.visible = visualizationParameters.showOrigin })
 visualFolder.add(visualizationParameters, 'ambientIntensity').min(0).max(2).step(0.1).name('Ambient Light')
     .onChange(() => { ambientLight.intensity = visualizationParameters.ambientIntensity })
-visualFolder.open()
+visualFolder.add(visualizationParameters, 'shadowsEnabled').name('Shadows')
+    .onChange(() => {
+        directionalLight.castShadow    = visualizationParameters.shadowsEnabled
+        renderer.shadowMap.enabled     = visualizationParameters.shadowsEnabled
+    })
 
-// — Motion —
-const motionFolder = gui.addFolder('🎮 Motion')
-motionFolder.add(motionParameters, 'enableAnimation').name('Enable Animation')
-motionFolder.add(motionParameters, 'animationType', ['none', 'rotation', 'linear', 'circular']).name('Type')
-motionFolder.add(motionParameters, 'angularVelocityX').min(-5).max(5).step(0.01).name('ω X (rad/s)')
-motionFolder.add(motionParameters, 'angularVelocityY').min(-5).max(5).step(0.01).name('ω Y (rad/s)')
-motionFolder.add(motionParameters, 'angularVelocityZ').min(-5).max(5).step(0.01).name('ω Z (rad/s)')
-motionFolder.add(visualizationParameters, 'showTrajectory').name('Show Trajectory')
-motionFolder.add(visualizationParameters, 'trajectoryLength').min(10).max(1000).step(10).name('Traj Length')
-
-// — Camera —
-const cameraFolder = gui.addFolder('📷 Camera')
+// Camera
+const cameraFolder = gui.addFolder('📷 Camera Control')
+cameraFolder.add(cameraParameters, 'viewMode', ['free', 'fixed', 'tracking', 'cinematic']).name('View Mode')
 cameraFolder.add(cameraParameters, 'fov').min(10).max(120).step(1).name('FOV')
     .onChange(() => { camera.fov = cameraParameters.fov; camera.updateProjectionMatrix() })
-cameraFolder.add(cameraParameters, 'viewMode', ['free', 'tracking']).name('View Mode')
+cameraFolder.add(cameraParameters, 'trackingTarget', ['robot', 'tool', 'custom']).name('Track Target')
 cameraFolder.add(cameraParameters, 'trackingDistance').min(1).max(30).step(0.5).name('Track Distance')
 cameraFolder.add(cameraParameters, 'autoRotate').name('Auto Rotate')
     .onChange(() => { controls.autoRotate = cameraParameters.autoRotate })
@@ -1068,25 +1183,40 @@ cameraFolder.add(cameraParameters, 'setTopView').name('📐 Top')
 cameraFolder.add(cameraParameters, 'setFrontView').name('📐 Front')
 cameraFolder.add(cameraParameters, 'setSideView').name('📐 Side')
 cameraFolder.add(cameraParameters, 'setIsometricView').name('📐 Isometric')
-cameraFolder.add(cameraParameters, 'resetCamera').name('🔄 Reset Camera')
+cameraFolder.add(cameraParameters, 'resetCamera').name('🔄 Reset')
 
-// — Simulation —
-const simulationFolder = gui.addFolder('⚙️ Simulation')
+// Simulation
+const simulationFolder = gui.addFolder('⚙️ Simulation Control')
 simulationFolder.add(simulationParameters, 'running').name('Running').listen()
 simulationFolder.add(simulationParameters, 'timeScale').min(0.1).max(10).step(0.1).name('Time Scale')
+simulationFolder.add(simulationParameters, 'fixedTimestep').name('Fixed Timestep')
+simulationFolder.add(simulationParameters, 'deltaTime').min(0.001).max(0.1).step(0.001).name('Δt (s)')
+simulationFolder.add(simulationParameters, 'simulationRate').min(10).max(1000).step(10).name('Rate (Hz)').disable()
 simulationFolder.add(simulationParameters, 'currentTime').name('Sim Time (s)').disable().listen()
-simulationFolder.add(simulationParameters, 'stepSimulation').name('⏯️ Step')
+simulationFolder.add(simulationParameters, 'stepSimulation').name('⏯️ Single Step')
 simulationFolder.add(simulationParameters, 'resetSimulation').name('🔄 Reset')
-simulationFolder.open()
+simulationFolder.add(simulationParameters, 'recordSimulation').name('⏺️ Record')
 
-// — Performance —
+// Telemetry
+const telemetryFolder = gui.addFolder('📊 Telemetry')
+telemetryFolder.add(telemetryParameters, 'enableLogging').name('Enable Logging')
+telemetryFolder.add(telemetryParameters, 'logFrequency').min(1).max(100).step(1).name('Freq (Hz)')
+telemetryFolder.add(telemetryParameters, 'showTelemetry').name('Show Display')
+telemetryFolder.add(telemetryParameters, 'controlFrequency').name('Control Hz').disable().listen()
+telemetryFolder.add(telemetryParameters, 'communicationLatency').name('Latency (ms)').disable().listen()
+telemetryFolder.add(telemetryParameters, 'errorCount').name('Errors').disable().listen()
+telemetryFolder.add(telemetryParameters, 'exportTelemetry').name('📤 Export')
+telemetryFolder.add(telemetryParameters, 'clearBuffer').name('🗑️ Clear Buffer')
+
+// Performance
 const perfFolder = gui.addFolder('⚡ Performance')
+perfFolder.add(performanceParameters, 'showStats').name('Show Stats')
 perfFolder.add(performanceParameters, 'fps').name('FPS').disable().listen()
 perfFolder.add(performanceParameters, 'frameTime').name('Frame (ms)').disable().listen()
 perfFolder.add(performanceParameters, 'renderTime').name('Render (ms)').disable().listen()
 perfFolder.add(performanceParameters, 'memoryMB').name('Memory (MB)').disable().listen()
 
-// — Scene —
+// Background colour
 gui.addColor(rendererParameters, 'clearColor').name('Background')
     .onChange(() => { renderer.setClearColor(rendererParameters.clearColor) })
 
@@ -1231,3 +1361,8 @@ const tick = () => {
 }
 
 tick()
+
+// Open key folders by default
+kinematicsFolder.open()
+visualFolder.open()
+simulationFolder.open()
