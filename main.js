@@ -1,3 +1,14 @@
+import { populateDropdown } from './main.js'
+import { loadModel } from './loaders.js'
+import { setModel } from './viewer.js'
+import { scene, hologramMaterial } from './threeSetup.js'
+
+populateDropdown(url => {
+  loadModel(url, hologramMaterial, scene, model => {
+    setModel(model, scene)
+  })
+})
+
 const select = document.getElementById('modelSelect')
 
 const EXTENSIONS = ['glb', 'gltf', 'fbx', 'stl', '3ds']
