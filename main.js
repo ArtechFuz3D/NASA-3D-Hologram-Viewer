@@ -5,10 +5,17 @@ import { FBXLoader } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/j
 import { STLLoader } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/STLLoader.js'
 import { TDSLoader } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/TDSLoader.js'
 
-import hologramVert from './shaders/hologram.vert.glsl'
-import hologramFrag from './shaders/hologram.frag.glsl'
+/* ---------------- Shader loading (browser-safe) ---------------- */
 
-/* ---------------- Scene ---------------- */
+async function loadShaders() {
+  const [vert, frag] = await Promise.all([
+    fetch('./shader/vert.glsl').then(r => r.text()),
+    fetch('./shader/frag.glsl').then(r => r.text())
+  ])
+  return { vert, frag }
+}
+
+/* ---------------- Scene setup ---------------- */
 
 const canvas = document.querySelector('.webgl')
 const scene = new THREE.Scene()
@@ -30,11 +37,13 @@ window.addEventListener('resize', () => {
   renderer.setSize(innerWidth, innerHeight)
 })
 
-/* ---------------- Hologram Material ---------------- */
+/* ---------------- Material ---------------- */
+
+const { vert, frag } = await loadShaders()
 
 const material = new THREE.ShaderMaterial({
-  vertexShader: hologramVert,
-  fragmentShader: hologramFrag,
+  vertexShader: vert,
+  fragmentShader: frag,
   uniforms: {
     uTime: { value: 0 },
     uColor: { value: new THREE.Color('#70c1ff') }
@@ -45,7 +54,7 @@ const material = new THREE.ShaderMaterial({
   blending: THREE.AdditiveBlending
 })
 
-/* ---------------- Model Loading ---------------- */
+/* ---------------- Model loading ---------------- */
 
 let currentModel = null
 
@@ -55,6 +64,7 @@ function disposeModel() {
   currentModel.traverse(o => {
     if (o.geometry) o.geometry.dispose()
   })
+  currentModel = null
 }
 
 function applyMaterial(obj) {
@@ -73,6 +83,7 @@ function loadModel(url) {
   else if (ext === 'fbx') loader = new FBXLoader()
   else if (ext === 'stl') loader = new STLLoader()
   else if (ext === '3ds') loader = new TDSLoader()
+  else return
 
   loader.load(url, data => {
     currentModel = data.scene || data
@@ -82,7 +93,7 @@ function loadModel(url) {
   })
 }
 
-/* ---------------- NASA Repo Fetch ---------------- */
+/* ---------------- NASA repo fetch ---------------- */
 
 const select = document.getElementById('modelSelect')
 const EXT = ['glb', 'gltf', 'fbx', 'stl', '3ds']
@@ -101,7 +112,7 @@ fetch('https://api.github.com/repos/nasa/NASA-3D-Resources/git/trees/master?recu
       select.appendChild(o)
     })
 
-    loadModel(select.value)
+    if (select.value) loadModel(select.value)
   })
 
 select.addEventListener('change', e => loadModel(e.target.value))
