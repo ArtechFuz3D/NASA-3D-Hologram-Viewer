@@ -3,32 +3,126 @@
 <head>
   <meta charset="UTF-8" />
   <title>NASA 3D Hologram Viewer</title>
-
-  <!-- Primary Meta -->
   <meta name="description" content="Interactive holographic viewer for NASA 3D models using Three.js and custom shaders." />
   <meta name="author" content="ArtechFuz3D" />
   <meta name="robots" content="index, follow" />
-
-  <!-- Open Graph -->
   <meta property="og:title" content="NASA 3D Hologram Viewer" />
-  <meta property="og:description" content="Browse and view NASA’s open 3D models with a real-time hologram shader." />
+  <meta property="og:description" content="Browse and view NASA's open 3D models with a real-time hologram shader." />
   <meta property="og:type" content="website" />
-
-  <!-- Twitter -->
   <meta name="twitter:card" content="summary_large_image" />
-
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-  <link rel="stylesheet" href="./style.css" />
+    body {
+      background: #000;
+      overflow: hidden;
+      font-family: 'Courier New', monospace;
+    }
+
+    canvas.webgl {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw;
+      height: 100vh;
+      display: block;
+    }
+
+    #ui {
+      position: fixed;
+      top: 1.5rem;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    h1 {
+      color: #70c1ff;
+      font-size: 0.75rem;
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      text-shadow: 0 0 12px #70c1ff88;
+    }
+
+    #modelSelect {
+      background: rgba(0, 10, 30, 0.85);
+      border: 1px solid #70c1ff55;
+      color: #70c1ff;
+      font-family: 'Courier New', monospace;
+      font-size: 0.8rem;
+      padding: 0.4rem 0.8rem;
+      border-radius: 3px;
+      outline: none;
+      cursor: pointer;
+      max-width: 340px;
+      width: 90vw;
+      box-shadow: 0 0 20px #70c1ff22, inset 0 0 10px #70c1ff11;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    #modelSelect:hover, #modelSelect:focus {
+      border-color: #70c1ffaa;
+      box-shadow: 0 0 30px #70c1ff44, inset 0 0 12px #70c1ff22;
+    }
+
+    #modelSelect option {
+      background: #000d1a;
+      color: #70c1ff;
+    }
+
+    #status {
+      color: #70c1ff88;
+      font-size: 0.65rem;
+      letter-spacing: 0.15em;
+      min-height: 1em;
+      text-shadow: 0 0 8px #70c1ff44;
+    }
+
+    /* Scanline overlay */
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0, 0, 0, 0.06) 2px,
+        rgba(0, 0, 0, 0.06) 4px
+      );
+      pointer-events: none;
+      z-index: 5;
+    }
+
+    /* Corner decorations */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 1rem;
+      border: 1px solid #70c1ff18;
+      pointer-events: none;
+      z-index: 6;
+    }
+  </style>
 </head>
-
 <body>
-  <select id="modelSelect">
-    <option>Loading NASA models…</option>
-  </select>
+  <div id="ui">
+    <h1>NASA 3D Hologram Viewer</h1>
+    <select id="modelSelect">
+      <option value="">Fetching NASA models…</option>
+    </select>
+    <div id="status"></div>
+  </div>
 
   <canvas class="webgl"></canvas>
 
+  <!-- NOTE: type="module" is required so ES module imports work in the browser.
+       The import URLs in main.js point to CDN (no bare specifiers like "three"),
+       so no import map or bundler is needed. -->
   <script type="module" src="./main.js"></script>
 </body>
 </html>
