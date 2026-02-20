@@ -660,10 +660,21 @@ const material = new THREE.ShaderMaterial({
  */
 let customModel = null
 
-// DOM elements injected by index.html
-const modelSelect = document.getElementById('modelSelect')
-const statusEl    = document.getElementById('status')
-const setStatus   = msg => { if (statusEl) statusEl.textContent = msg }
+// DOM elements
+const modelSelect      = document.getElementById('modelSelect')
+const modelGrid        = document.getElementById('model-grid')
+const searchInput      = document.getElementById('searchInput')
+const sbStatus         = document.getElementById('sb-status')
+const sbModelCount     = document.getElementById('sb-model-count')
+const modelNameDisplay = document.getElementById('model-name-display')
+const loadProgress     = document.getElementById('load-progress')
+const fpsValue         = document.getElementById('fps-value')
+
+const setStatus = msg => {
+    const el = document.getElementById('status')
+    if (el) el.textContent = msg
+    if (sbStatus) sbStatus.textContent = msg
+}
 
 function disposeModel() {
     if (!customModel) return
@@ -747,6 +758,7 @@ function onModelLoaded(obj) {
     // Reset camera to frame the new model
     cameraParameters.resetCamera()
     setStatus('')
+    if (loadProgress)     loadProgress.textContent = ''
 }
 
 function loadModel(url) {
@@ -756,11 +768,16 @@ function loadModel(url) {
     const ext = url.split('?')[0].split('.').pop().toLowerCase()
 
     const onProgress = xhr => {
-        if (xhr.total) setStatus(`Loading… ${Math.round(xhr.loaded / xhr.total * 100)}%`)
+        if (xhr.total) {
+            const pct = Math.round(xhr.loaded / xhr.total * 100)
+            setStatus(`Loading… ${pct}%`)
+            if (loadProgress) loadProgress.textContent = `${pct}%`
+        }
     }
     const onError = err => {
         console.error(err)
         setStatus('Failed to load — CORS or unsupported format')
+        if (loadProgress) loadProgress.textContent = 'ERROR'
     }
 
     if (ext === 'glb' || ext === 'gltf') {
@@ -797,20 +814,134 @@ const CURATED = [
     { name: 'Juno',                        path: 'Models/Juno/juno.3ds' },
 ]
 
-function populateSelect(models) {
-    if (!modelSelect) return
-    modelSelect.innerHTML = '<option value="">— Select a model —</option>'
-    models.forEach(m => {
-        const o       = document.createElement('option')
-        o.value       = BASE_RAW + m.path
-        o.textContent = m.name || m.path.split('/').pop()
-        modelSelect.appendChild(o)
-    })
-    setStatus(`${models.length} models available`)
+/**
+ * ==================== MODEL GRID UI ====================
+ */
+
+// Model icon map — emoji fallback icons by keyword
+const ICON_MAP = [
+    [/rover|curiosity|msl/i,      '🤖'],
+    [/shuttle|orbiter/i,          '🚀'],
+    [/station|iss/i,              '🛸'],
+    [/hubble|telescope/i,         '🔭'],
+    [/apollo|command|module/i,    '🛸'],
+    [/voyager|pioneer|new.hor/i,  '🛰️'],
+    [/cassini|saturn/i,           '🪐'],
+    [/mars|pathfinder|maven/i,    '🔴'],
+    [/juno|dawn/i,                '🌌'],
+    [/lunar|moon/i,               '🌑'],
+]
+
+function getIcon(name) {
+    for (const [re, icon] of ICON_MAP) {
+        if (re.test(name)) return icon
+    }
+    return '📦'
 }
 
+// Category keyword filter
+const CAT_KEYWORDS = {
+    all:        null,
+    spacecraft: /shuttle|voyager|cassini|dawn|juno|pioneer|new.hor|maven|orbiter|spacecraft|probe/i,
+    rovers:     /rover|curiosity|msl|opportunity|spirit|perseverance/i,
+    stations:   /station|iss|gateway/i,
+    telescopes: /hubble|telescope|webb/i,
+}
+
+let allModels       = []
+let activeCategory  = 'all'
+let searchQuery     = ''
+let selectedCard    = null
+
+function modelMatchesFilter(m) {
+    const name = m.name.toLowerCase()
+    const catRe = CAT_KEYWORDS[activeCategory]
+    if (catRe && !catRe.test(name)) return false
+    if (searchQuery && !name.includes(searchQuery)) return false
+    return true
+}
+
+function renderGrid() {
+    if (!modelGrid) return
+    modelGrid.innerHTML = ''
+
+    const filtered = allModels.filter(modelMatchesFilter)
+
+    if (filtered.length === 0) {
+        const empty = document.createElement('div')
+        empty.className = 'grid-loading'
+        empty.innerHTML = '<div style="color:var(--text-dim);font-size:11px">No models match</div>'
+        modelGrid.appendChild(empty)
+        return
+    }
+
+    filtered.forEach(m => {
+        const ext  = m.path.split('.').pop().toUpperCase()
+        const card = document.createElement('div')
+        card.className = 'model-card'
+        card.dataset.url = BASE_RAW + m.path
+        card.dataset.name = m.name
+        card.innerHTML = `
+            <div class="model-icon">${getIcon(m.name)}</div>
+            <div class="model-label">${m.name.replace(/\.[^.]+$/, '')}</div>
+            <div class="model-ext">${ext}</div>
+        `
+        card.addEventListener('click', () => {
+            if (selectedCard) selectedCard.classList.remove('selected')
+            card.classList.add('selected')
+            selectedCard = card
+            const url = card.dataset.url
+            if (modelNameDisplay) modelNameDisplay.textContent = m.name.replace(/\.[^.]+$/, '').toUpperCase()
+            loadModel(url)
+        })
+        modelGrid.appendChild(card)
+    })
+}
+
+function populateGrid(models) {
+    allModels = models
+    if (sbModelCount) sbModelCount.textContent = `${models.length} models`
+
+    // Also populate hidden <select> for any legacy references
+    if (modelSelect) {
+        modelSelect.innerHTML = '<option value="">— Select —</option>'
+        models.forEach(m => {
+            const o = document.createElement('option')
+            o.value = BASE_RAW + m.path
+            o.textContent = m.name
+            modelSelect.appendChild(o)
+        })
+    }
+    renderGrid()
+}
+
+// Search input
+if (searchInput) {
+    searchInput.addEventListener('input', e => {
+        searchQuery = e.target.value.toLowerCase().trim()
+        renderGrid()
+    })
+}
+
+// Category tabs
+document.querySelectorAll('.ctab').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('.ctab').forEach(b => b.classList.remove('active'))
+        btn.classList.add('active')
+        activeCategory = btn.dataset.cat
+        renderGrid()
+    })
+})
+
 async function fetchNASAModels() {
-    setStatus('Fetching model list…')
+    if (modelGrid) {
+        modelGrid.innerHTML = `
+            <div class="grid-loading">
+                <div class="spinner"></div>
+                <div id="status">Fetching models…</div>
+            </div>
+        `
+    }
     try {
         const bRes = await fetch(
             'https://api.github.com/repos/nasa/NASA-3D-Resources/branches/master',
@@ -832,19 +963,49 @@ async function fetchNASAModels() {
             .map(f => ({ name: f.path.split('/').pop(), path: f.path }))
 
         if (!models.length) throw new Error('No models found in tree')
-        populateSelect(models)
-        if (tData.truncated) setStatus(`Tree truncated — ${models.length} models found`)
+        populateGrid(models)
+        if (tData.truncated) setStatus(`${models.length} models (tree truncated)`)
     } catch (err) {
         console.warn('GitHub API failed:', err.message)
-        populateSelect(CURATED)
-        setStatus('API unavailable — showing curated list')
+        populateGrid(CURATED)
+        setStatus('Showing curated list')
     }
 }
 
-if (modelSelect) {
-    fetchNASAModels()
-    modelSelect.addEventListener('change', e => { if (e.target.value) loadModel(e.target.value) })
+fetchNASAModels()
+
+/**
+ * ==================== TOOLBAR WIRING ====================
+ */
+function wireToolbarBtn(id, fn) {
+    const el = document.getElementById(id)
+    if (el) el.addEventListener('click', fn)
 }
+
+wireToolbarBtn('btn-top',   () => { camera.position.set(0, 15, 0);   controls.target.set(0,0,0); controls.update() })
+wireToolbarBtn('btn-front', () => { camera.position.set(0, 0, 15);   controls.target.set(0,0,0); controls.update() })
+wireToolbarBtn('btn-side',  () => { camera.position.set(15, 0, 0);   controls.target.set(0,0,0); controls.update() })
+wireToolbarBtn('btn-iso',   () => { camera.position.set(5, 3, 5);    controls.target.set(0,0,0); controls.update() })
+wireToolbarBtn('btn-reset', () => { cameraParameters.resetCamera() })
+
+wireToolbarBtn('btn-wireframe', () => {
+    const btn = document.getElementById('btn-wireframe')
+    material.wireframe = !material.wireframe
+    btn.classList.toggle('active', material.wireframe)
+})
+
+wireToolbarBtn('btn-hologram', () => {
+    // Toggle between hologram additive and solid
+    const isAdditive = material.blending === THREE.AdditiveBlending
+    material.blending = isAdditive ? THREE.NormalBlending : THREE.AdditiveBlending
+    material.needsUpdate = true
+    document.getElementById('btn-hologram').classList.toggle('active-accent', !isAdditive)
+})
+
+wireToolbarBtn('btn-autorotate', () => {
+    controls.autoRotate = !controls.autoRotate
+    document.getElementById('btn-autorotate').classList.toggle('active', controls.autoRotate)
+})
 
 /**
  * ==================== GUI ====================
@@ -1081,6 +1242,7 @@ const tick = () => {
         performanceParameters.frameTime   = ((elapsed / frameCount) * 1000).toFixed(1)
         performanceParameters.controlFrequency   = performanceParameters.fps
         telemetryParameters.controlFrequency     = performanceParameters.fps
+        if (fpsValue) fpsValue.textContent = performanceParameters.fps
         frameCount = 0
         fpsTime    = elapsedTime
     }
