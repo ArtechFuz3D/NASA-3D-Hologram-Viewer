@@ -125,7 +125,7 @@ const envState = {
 let iframeReady = false
 function ensurePlanetIframe(cb) {
     if (iframeReady) { cb?.(); return }
-    planetIframe.src = '/src/index.html'
+    planetIframe.src = '/planet-shader.html'
     planetIframe.onload = () => { iframeReady = true; cb?.() }
 }
 
