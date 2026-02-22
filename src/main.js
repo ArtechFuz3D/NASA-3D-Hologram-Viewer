@@ -7,7 +7,6 @@ import { STLLoader }     from 'three/addons/loaders/STLLoader.js'
 import { TDSLoader }     from 'three/addons/loaders/TDSLoader.js'
 import { OBJLoader }     from 'three/addons/loaders/OBJLoader.js'
 import { RGBELoader }    from 'three/addons/loaders/RGBELoader.js'
-import GUI from 'lil-gui'
 
 import hologramVertShader from './shaders/vert.glsl'
 import hologramFragShader from './shaders/frag.glsl'
@@ -271,9 +270,10 @@ function applyMaterialMode(mode) {
                 break
         }
     })
-    // Keep GUI dropdown in sync
-    if (matModeParam) matModeParam.mode = mode
-    gui.controllersRecursive().forEach(c => c.updateDisplay())
+    // Keep seg buttons in sync
+    document.querySelectorAll('#mat-mode-seg .seg-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.val === mode)
+    })
 }
 
 // ─────────────────────────────────────────
@@ -681,95 +681,198 @@ document.querySelectorAll('.pp-tog').forEach(tog => {
         sendPlanet({ flag: tog.dataset.flag, value: tog.classList.contains('on') })
     })
 })
-const gui = new GUI({ width: 280 })
-gui.title('Hologram Viewer')
+// ─────────────────────────────────────────
+// RIGHT PANEL — DOM WIRING
+// ─────────────────────────────────────────
 
-// — Visualization —
+// ── Panel collapse / tab switching ──
+const rightPanel = document.getElementById('right-panel')
+const rpToggle   = document.getElementById('rp-toggle')
+rpToggle?.addEventListener('click', () => rightPanel?.classList.toggle('rp-collapsed'))
+
+document.querySelectorAll('.rp-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+        const pane = tab.dataset.pane
+        document.querySelectorAll('.rp-tab').forEach(t => t.classList.remove('active'))
+        document.querySelectorAll('.rp-pane').forEach(p => p.classList.remove('active'))
+        tab.classList.add('active')
+        document.querySelector(`.rp-pane[data-pane="${pane}"]`)?.classList.add('active')
+        if (rightPanel?.classList.contains('rp-collapsed')) rightPanel.classList.remove('rp-collapsed')
+    })
+})
+
+// Help menu button → open Help pane in right panel
+document.getElementById('menu-help')?.addEventListener('click', () => {
+    document.querySelectorAll('.rp-tab').forEach(t => t.classList.remove('active'))
+    document.querySelectorAll('.rp-pane').forEach(p => p.classList.remove('active'))
+    document.querySelector('.rp-tab[data-pane="help"]')?.classList.add('active')
+    document.querySelector('.rp-pane[data-pane="help"]')?.classList.add('active')
+    rightPanel?.classList.remove('rp-collapsed')
+})
+
+// File menu dropdown
+const fileDropdown = document.getElementById('file-dropdown')
+const menuFileBtn  = document.getElementById('menu-file')
+menuFileBtn?.addEventListener('click', e => {
+    e.stopPropagation()
+    const rect = menuFileBtn.getBoundingClientRect()
+    if (fileDropdown) {
+        fileDropdown.style.left = rect.left + 'px'
+        fileDropdown.classList.toggle('open')
+    }
+})
+document.addEventListener('click', () => fileDropdown?.classList.remove('open'))
+
+// Export settings JSON
+document.getElementById('dd-export-settings')?.addEventListener('click', () => {
+    fileDropdown?.classList.remove('open')
+    const exportData = {
+        meta: { app: 'NASA Hologram Viewer', version: '1.0', exportedAt: new Date().toISOString() },
+        model: { name: document.getElementById('model-name-display')?.textContent ?? 'none' },
+        visualization: {
+            materialMode: document.querySelector('#mat-mode-seg .seg-btn.active')?.dataset.val ?? 'hologram',
+            holoColor:    document.getElementById('holo-color')?.value ?? '#70c1ff',
+            aberration:   parseFloat(document.getElementById('aberration')?.value ?? 3),
+            grid:         document.getElementById('tog-grid')?.classList.contains('on'),
+            originAxes:   document.getElementById('tog-axes')?.classList.contains('on'),
+            boundingBox:  document.getElementById('tog-bbox')?.classList.contains('on'),
+            localAxes:    document.getElementById('tog-laxes')?.classList.contains('on'),
+        },
+        lighting: {
+            ambientIntensity: parseFloat(document.getElementById('amb-int')?.value ?? 0.25),
+            key:   { on: document.getElementById('tog-key')?.classList.contains('on'),   color: document.getElementById('key-color')?.value,   intensity: parseFloat(document.getElementById('key-int')?.value) },
+            fill:  { on: document.getElementById('tog-fill')?.classList.contains('on'),  color: document.getElementById('fill-color')?.value,  intensity: parseFloat(document.getElementById('fill-int')?.value) },
+            rim:   { on: document.getElementById('tog-rim')?.classList.contains('on'),   color: document.getElementById('rim-color')?.value,   intensity: parseFloat(document.getElementById('rim-int')?.value) },
+            point: { on: document.getElementById('tog-point')?.classList.contains('on'), color: document.getElementById('point-color')?.value, intensity: parseFloat(document.getElementById('point-int')?.value), x: parseFloat(document.getElementById('point-x')?.value), y: parseFloat(document.getElementById('point-y')?.value), z: parseFloat(document.getElementById('point-z')?.value) },
+            spot:  { on: document.getElementById('tog-spot')?.classList.contains('on'),  intensity: parseFloat(document.getElementById('spot-int')?.value), angle: parseFloat(document.getElementById('spot-angle')?.value), penumbra: parseFloat(document.getElementById('spot-pen')?.value) },
+        },
+        background: {
+            source:       envState.bgSource,
+            solidColor:   envState.solidColor,
+            hdriLighting: envState.hdriLighting,
+        },
+        motion: {
+            enabled: motionState.enabled, type: motionState.type,
+            wx: motionState.wx, wy: motionState.wy, wz: motionState.wz,
+            vx: motionState.vx, vy: motionState.vy, vz: motionState.vz,
+            circularRadius: motionState.circularRadius, circularSpeed: motionState.circularSpeed, circularAxis: motionState.circularAxis,
+            showTrajectory: motionState.showTrajectory, trajectoryLength: motionState.trajectoryLength,
+        },
+        camera: {
+            fov:             fovParam.fov,
+            autoRotate:      controls.autoRotate,
+            autoRotateSpeed: controls.autoRotateSpeed,
+            position:        camera.position.toArray(),
+            target:          controls.target.toArray(),
+        },
+        simulation: {
+            running: simState.running, timeScale: simState.timeScale, currentTime: simState.currentTime,
+        },
+    }
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' })
+    const url  = URL.createObjectURL(blob)
+    const a    = document.createElement('a')
+    a.href     = url
+    a.download = `hologram-settings-${Date.now()}.json`
+    a.click()
+    URL.revokeObjectURL(url)
+})
+
+// ── Helpers ──
+const tog = (id, onFn, offFn, startOn) => {
+    const el = document.getElementById(id)
+    if (!el) return
+    if (startOn) el.classList.add('on')
+    el.addEventListener('click', () => {
+        el.classList.toggle('on')
+        el.classList.contains('on') ? onFn() : offFn()
+    })
+    return el
+}
+const slider = (id, fn) => {
+    const el = document.getElementById(id)
+    const valEl = document.getElementById(id + '-val')
+    if (!el) return
+    el.addEventListener('input', () => {
+        const v = parseFloat(el.value)
+        if (valEl) valEl.textContent = v.toFixed(v % 1 === 0 ? 0 : 2)
+        fn(v)
+    })
+    return el
+}
+const seg = (containerId, fn) => {
+    document.querySelectorAll(`#${containerId} .seg-btn`).forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll(`#${containerId} .seg-btn`).forEach(b => b.classList.remove('active'))
+            btn.classList.add('active')
+            fn(btn.dataset.val)
+        })
+    })
+}
+
+// ── VISUALIZATION ──
 const matModeParam = { mode: 'hologram' }
-const visFolder = gui.addFolder('👁️ Visualization')
-visFolder.add(matModeParam, 'mode', ['hologram', 'original', 'wireframe', 'clay'])
-    .name('Material').onChange(v => applyMaterialMode(v))
-visFolder.addColor({ color: '#70c1ff' }, 'color').name('Hologram Color')
-    .onChange(v => hologramMaterial.uniforms.uColor.value.set(v))
-visFolder.add(hologramMaterial.uniforms.uAberrationStrength, 'value').min(0).max(10).step(0.1).name('Aberration')
-visFolder.add({ bb: false }, 'bb').name('Bounding Box')
-    .onChange(v => { if (boundingBoxHelper) boundingBoxHelper.visible = v })
-visFolder.add({ la: false }, 'la').name('Local Axes')
-    .onChange(v => { if (localAxesHelper) localAxesHelper.visible = v })
-visFolder.add(gridHelper, 'visible').name('Grid')
-visFolder.add(axesHelper, 'visible').name('Origin Axes')
-visFolder.open()
+seg('mat-mode-seg', v => applyMaterialMode(v))
 
-// — Lighting —
-const lightFolder = gui.addFolder('💡 Lighting')
-lightFolder.add(ambientLight, 'intensity').min(0).max(2).step(0.05).name('Ambient')
-lightFolder.addColor({ c: '#fff4e0' }, 'c').name('Key Color')
-    .onChange(v => keyLight.color.set(v))
-lightFolder.add(keyLight, 'intensity').min(0).max(4).step(0.05).name('Key Intensity')
-lightFolder.add(keyLight, 'visible').name('Key Light')
-lightFolder.addColor({ c: '#8090ff' }, 'c').name('Fill Color')
-    .onChange(v => fillLight.color.set(v))
-lightFolder.add(fillLight, 'intensity').min(0).max(2).step(0.05).name('Fill Intensity')
-lightFolder.add(fillLight, 'visible').name('Fill Light')
-lightFolder.addColor({ c: '#c0e8ff' }, 'c').name('Rim Color')
-    .onChange(v => rimLight.color.set(v))
-lightFolder.add(rimLight, 'intensity').min(0).max(2).step(0.05).name('Rim Intensity')
-lightFolder.add(rimLight, 'visible').name('Rim Light')
-// Point light
-lightFolder.add(pointLight, 'visible').name('Point Light')
-lightFolder.addColor({ c: '#ff8844' }, 'c').name('Point Color')
-    .onChange(v => pointLight.color.set(v))
-lightFolder.add(pointLight, 'intensity').min(0).max(5).step(0.1).name('Point Intensity')
-lightFolder.add(pointLight.position, 'x').min(-10).max(10).step(0.1).name('Point X')
-lightFolder.add(pointLight.position, 'y').min(-10).max(10).step(0.1).name('Point Y')
-lightFolder.add(pointLight.position, 'z').min(-10).max(10).step(0.1).name('Point Z')
-// Spot light
-lightFolder.add(spotLight, 'visible').name('Spot Light')
-lightFolder.add(spotLight, 'intensity').min(0).max(8).step(0.1).name('Spot Intensity')
-lightFolder.add(spotLight, 'angle').min(0.05).max(Math.PI / 2).step(0.01).name('Spot Angle')
-lightFolder.add(spotLight, 'penumbra').min(0).max(1).step(0.01).name('Spot Penumbra')
+document.getElementById('holo-color')?.addEventListener('input', e => {
+    hologramMaterial.uniforms.uColor.value.set(e.target.value)
+})
+slider('aberration', v => { hologramMaterial.uniforms.uAberrationStrength.value = v })
 
-// — Background —
-const bgFolder = gui.addFolder('🌌 Background')
+tog('tog-grid',  () => { gridHelper.visible = true  }, () => { gridHelper.visible = false  }, true)
+tog('tog-axes',  () => { axesHelper.visible = true  }, () => { axesHelper.visible = false  }, true)
+tog('tog-bbox',  () => { if (boundingBoxHelper)  boundingBoxHelper.visible  = true  }, () => { if (boundingBoxHelper)  boundingBoxHelper.visible  = false })
+tog('tog-laxes', () => { if (localAxesHelper)    localAxesHelper.visible    = true  }, () => { if (localAxesHelper)    localAxesHelper.visible    = false })
 
-// HDRI lighting toggle — independent of what's shown as background
-bgFolder.add(envState, 'hdriLighting').name('HDRI Lighting (IBL)')
-    .onChange(v => {
-        if (v && !hdriLoaded) {
-            ensureHDRI(() => applyEnvironment())
-        } else {
-            applyEnvironment()
-        }
+// ── LIGHTING ──
+slider('amb-int',    v => { ambientLight.intensity = v })
+tog('tog-key',  () => { keyLight.visible  = true }, () => { keyLight.visible  = false }, true)
+document.getElementById('key-color')?.addEventListener('input',  e => keyLight.color.set(e.target.value))
+slider('key-int',    v => { keyLight.intensity  = v })
+tog('tog-fill', () => { fillLight.visible = true }, () => { fillLight.visible = false }, true)
+document.getElementById('fill-color')?.addEventListener('input', e => fillLight.color.set(e.target.value))
+slider('fill-int',   v => { fillLight.intensity = v })
+tog('tog-rim',  () => { rimLight.visible  = true }, () => { rimLight.visible  = false }, true)
+document.getElementById('rim-color')?.addEventListener('input',  e => rimLight.color.set(e.target.value))
+slider('rim-int',    v => { rimLight.intensity  = v })
+tog('tog-point', () => { pointLight.visible = true }, () => { pointLight.visible = false })
+document.getElementById('point-color')?.addEventListener('input', e => pointLight.color.set(e.target.value))
+slider('point-int',  v => { pointLight.intensity   = v })
+slider('point-x',    v => { pointLight.position.x  = v })
+slider('point-y',    v => { pointLight.position.y  = v })
+slider('point-z',    v => { pointLight.position.z  = v })
+tog('tog-spot',  () => { spotLight.visible = true }, () => { spotLight.visible = false })
+slider('spot-int',   v => { spotLight.intensity = v })
+slider('spot-angle', v => { spotLight.angle     = v })
+slider('spot-pen',   v => { spotLight.penumbra  = v })
+
+// ── BACKGROUND ──
+document.querySelectorAll('.bg-tile').forEach(tile => {
+    tile.addEventListener('click', () => {
+        document.querySelectorAll('.bg-tile').forEach(t => t.classList.remove('active'))
+        tile.classList.add('active')
+        envState.bgSource = tile.dataset.bg
+        document.getElementById('solid-color-row').style.display = envState.bgSource === 'solid' ? '' : 'none'
+        const needsHDRI = envState.bgSource === 'hdri' && !hdriLoaded
+        needsHDRI ? ensureHDRI(() => applyEnvironment()) : applyEnvironment()
     })
+})
+document.getElementById('bg-solid-color')?.addEventListener('input', e => {
+    envState.solidColor = e.target.value
+    if (envState.bgSource === 'solid') applyEnvironment()
+})
+tog('tog-hdri', () => {
+    envState.hdriLighting = true
+    if (!hdriLoaded) ensureHDRI(() => applyEnvironment()); else applyEnvironment()
+}, () => { envState.hdriLighting = false; applyEnvironment() })
 
-// Background source — independent of lighting
-bgFolder.add(envState, 'bgSource', ['solid', 'hdri', 'earth', 'planet']).name('Background')
-    .onChange(v => {
-        const needsHDRI = v === 'hdri' && !hdriLoaded
-        if (needsHDRI) {
-            ensureHDRI(() => applyEnvironment())
-        } else {
-            applyEnvironment()
-        }
-    })
-
-// Solid color picker — active when bgSource === 'solid'
-bgFolder.addColor(envState, 'solidColor').name('Solid Color')
-    .onChange(() => { if (envState.bgSource === 'solid') applyEnvironment() })
-
-bgFolder.open()
-
-// — Motion —
+// ── MOTION ──
 const motionState = {
-    enabled:         false,
-    type:            'none',   // 'none' | 'rotation' | 'linear' | 'circular'
-    wx: 0, wy: 0.5, wz: 0,    // angular velocity (rad/s) for rotation mode
-    vx: 0, vy: 0,   vz: 0,    // linear velocity (units/s) for linear mode
-    circularRadius:  3,        // radius for circular mode
-    circularSpeed:   1,        // revolutions/s for circular mode
-    circularAxis:    'xz',     // plane for circular mode
-    showTrajectory:  false,
-    trajectoryLength: 300,
+    enabled: false, type: 'none',
+    wx: 0, wy: 0.5, wz: 0,
+    vx: 0, vy: 0,   vz: 0,
+    circularRadius: 3, circularSpeed: 1, circularAxis: 'xz',
+    showTrajectory: false, trajectoryLength: 300,
     clearTrajectory: () => {
         trajectoryPoints.length = 0
         if (trajectoryLine) {
@@ -780,62 +883,46 @@ const motionState = {
         }
     }
 }
+tog('tog-motion', () => { motionState.enabled = true }, () => { motionState.enabled = false })
+seg('motion-type-seg', v => { motionState.type = v })
 
-const motFolder = gui.addFolder('🎮 Motion')
-motFolder.add(motionState, 'enabled').name('Enable')
-motFolder.add(motionState, 'type', ['none', 'rotation', 'linear', 'circular']).name('Type')
+slider('wx', v => { motionState.wx = v })
+slider('wy', v => { motionState.wy = v })
+slider('wz', v => { motionState.wz = v })
+slider('vx', v => { motionState.vx = v })
+slider('vy', v => { motionState.vy = v })
+slider('vz', v => { motionState.vz = v })
+slider('circ-r',   v => { motionState.circularRadius = v })
+slider('circ-spd', v => { motionState.circularSpeed  = v })
+document.getElementById('circ-axis')?.addEventListener('change', e => { motionState.circularAxis = e.target.value })
 
-// Rotation controls
-const rotGroup = motFolder.addFolder('  Rotation')
-rotGroup.add(motionState, 'wx').min(-5).max(5).step(0.01).name('ω X (rad/s)')
-rotGroup.add(motionState, 'wy').min(-5).max(5).step(0.01).name('ω Y (rad/s)')
-rotGroup.add(motionState, 'wz').min(-5).max(5).step(0.01).name('ω Z (rad/s)')
+tog('tog-traj', () => { motionState.showTrajectory = true }, () => { motionState.showTrajectory = false })
+slider('traj-len', v => { motionState.trajectoryLength = v })
+document.getElementById('btn-clear-traj')?.addEventListener('click', () => motionState.clearTrajectory())
 
-// Linear controls
-const linGroup = motFolder.addFolder('  Linear')
-linGroup.add(motionState, 'vx').min(-5).max(5).step(0.01).name('Vel X (u/s)')
-linGroup.add(motionState, 'vy').min(-5).max(5).step(0.01).name('Vel Y (u/s)')
-linGroup.add(motionState, 'vz').min(-5).max(5).step(0.01).name('Vel Z (u/s)')
-
-// Circular controls
-const circGroup = motFolder.addFolder('  Circular')
-circGroup.add(motionState, 'circularRadius').min(0.5).max(10).step(0.1).name('Radius')
-circGroup.add(motionState, 'circularSpeed').min(-5).max(5).step(0.1).name('Speed (rev/s)')
-circGroup.add(motionState, 'circularAxis', ['xz', 'xy', 'yz']).name('Plane')
-
-// Trajectory
-motFolder.add(motionState, 'showTrajectory').name('Show Trajectory')
-motFolder.add(motionState, 'trajectoryLength').min(10).max(2000).step(10).name('Traj Length')
-motFolder.add(motionState, 'clearTrajectory').name('🗑️ Clear Trajectory')
-
-// — Camera —
-const camFolder = gui.addFolder('📷 Camera')
+// ── CAMERA ──
 const fovParam = { fov: 45 }
-camFolder.add(fovParam, 'fov').min(10).max(120).step(1).name('FOV')
-    .onChange(v => { camera.fov = v; camera.updateProjectionMatrix() })
-camFolder.add(controls, 'autoRotate').name('Auto Rotate')
-camFolder.add(controls, 'autoRotateSpeed').min(-10).max(10).step(0.5).name('Rotate Speed')
+slider('cam-fov', v => { fovParam.fov = v; camera.fov = v; camera.updateProjectionMatrix() })
+tog('tog-autorot', () => { controls.autoRotate = true }, () => { controls.autoRotate = false })
+slider('rot-spd', v => { controls.autoRotateSpeed = v })
 
-// — Simulation —
+// ── SIMULATION ──
 const simState = { running: true, timeScale: 1.0, currentTime: 0 }
-const simFolder = gui.addFolder('⚙️ Simulation')
-simFolder.add(simState, 'running').name('Running')
-simFolder.add(simState, 'timeScale').min(0.1).max(10).step(0.1).name('Time Scale')
-simFolder.add(simState, 'currentTime').name('Sim Time (s)').disable().listen()
-simFolder.add({ reset: () => {
+tog('tog-sim-run', () => { simState.running = true }, () => { simState.running = false }, true)
+slider('sim-scale', v => { simState.timeScale = v })
+document.getElementById('btn-sim-reset')?.addEventListener('click', () => {
     simState.currentTime = 0
     if (customModel) { customModel.position.set(0,0,0); customModel.rotation.set(0,0,0) }
     motionState.clearTrajectory()
-} }, 'reset').name('🔄 Reset')
-simFolder.open()
+})
 
-// — Performance (read-only) —
+// ── PERFORMANCE (updated in tick loop) ──
 const perfState = { fps: 0, frameMs: 0, renderMs: 0, memMB: 0 }
-const perfFolder = gui.addFolder('⚡ Performance')
-perfFolder.add(perfState, 'fps').name('FPS').disable().listen()
-perfFolder.add(perfState, 'frameMs').name('Frame (ms)').disable().listen()
-perfFolder.add(perfState, 'renderMs').name('Render (ms)').disable().listen()
-perfFolder.add(perfState, 'memMB').name('Memory (MB)').disable().listen()
+const perfFpsEl    = document.getElementById('perf-fps')
+const perfFrameEl  = document.getElementById('perf-frame')
+const perfRenderEl = document.getElementById('perf-render')
+const perfMemEl    = document.getElementById('perf-mem')
+const simTimeEl    = document.getElementById('sim-time-display')
 
 
 // ─────────────────────────────────────────
@@ -858,16 +945,19 @@ const tick = () => {
     lastTime    = now
     elapsed    += delta
 
-    // FPS
+    // FPS + perf
     frameCount++
     if (elapsed - fpsTimer > 0.5) {
         const dt = elapsed - fpsTimer
         perfState.fps     = Math.round(frameCount / dt)
         perfState.frameMs = ((dt / frameCount) * 1000).toFixed(1)
-        if (fpsValue) fpsValue.textContent = perfState.fps
+        if (fpsValue)      fpsValue.textContent      = perfState.fps
+        if (perfFpsEl)     perfFpsEl.textContent     = perfState.fps
+        if (perfFrameEl)   perfFrameEl.textContent   = perfState.frameMs
         frameCount = 0
         fpsTimer   = elapsed
     }
+    if (simTimeEl) simTimeEl.textContent = simState.currentTime.toFixed(2) + ' s'
 
     // Hologram shader time
     hologramMaterial.uniforms.uTime.value = elapsed
@@ -941,7 +1031,11 @@ const tick = () => {
     const t0 = performance.now()
     renderer.render(scene, camera)
     perfState.renderMs = (performance.now() - t0).toFixed(2)
-    if (performance.memory) perfState.memMB = (performance.memory.usedJSHeapSize / 1048576).toFixed(1)
+    if (perfRenderEl) perfRenderEl.textContent = perfState.renderMs
+    if (performance.memory) {
+        perfState.memMB = (performance.memory.usedJSHeapSize / 1048576).toFixed(1)
+        if (perfMemEl) perfMemEl.textContent = perfState.memMB
+    }
 
     window.requestAnimationFrame(tick)
 }
