@@ -2,7 +2,7 @@ name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [MVP-loading]
+    branches: [MVP-name]
   workflow_dispatch:
 
 permissions:

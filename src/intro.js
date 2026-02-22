@@ -4,8 +4,8 @@
 // Change AIRLOCK_SRC below if you rename the file
 // ─────────────────────────────────────────────────────────────────
 
-const AIRLOCK_SRC   = './airlock.webm'
-const TITLE_TEXT    = 'NASA 3D HOLOGRAM VIEWER'
+const AIRLOCK_SRC   = './airlockc1.webm'
+const TITLE_TEXT    = 'NASA 3D MODEL VIEWER'
 const AUTHOR_TEXT   = 'ArtechFuz3D'
 const BAR_DURATION  = 3500  // ms — cinematic progress bar fill time
 const TYPEWRITER_DELAY = 40 // ms per character
@@ -155,6 +155,35 @@ style.textContent = `
   transition: opacity 1s ease;
   pointer-events: none;
 }
+
+#intro-enter {
+  margin-top: 32px;
+  padding: 9px 32px;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: #70c1ff;
+  background: transparent;
+  border: 1px solid rgba(112,193,255,0.4);
+  border-radius: 3px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.6s ease, border-color 0.2s, color 0.2s, box-shadow 0.2s;
+  animation: enterPulse 2s ease-in-out infinite;
+}
+#intro-enter.visible { opacity: 1; }
+#intro-enter:hover {
+  color: #fff;
+  border-color: #70c1ff;
+  box-shadow: 0 0 16px rgba(112,193,255,0.3);
+  animation: none;
+}
+@keyframes enterPulse {
+  0%, 100% { border-color: rgba(112,193,255,0.25); box-shadow: none; }
+  50%       { border-color: rgba(112,193,255,0.6);  box-shadow: 0 0 12px rgba(112,193,255,0.2); }
+}
 `
 document.head.appendChild(style)
 
@@ -182,6 +211,7 @@ if (!overlay) {
           <span id="intro-pct">0%</span>
         </div>
       </div>
+      <button id="intro-enter">[ ENTER ]</button>
     </div>
   `
 
@@ -196,6 +226,7 @@ if (!overlay) {
   const barFill   = document.getElementById('intro-bar-fill')
   const statusEl  = document.getElementById('intro-status')
   const pctEl     = document.getElementById('intro-pct')
+  const enterBtn  = document.getElementById('intro-enter')
 
   // ── Status messages tied to progress ─────────────────────────
   const statuses = [
@@ -275,8 +306,20 @@ if (!overlay) {
         // Run the cinematic bar
         setTimeout(() => {
           runBar(BAR_DURATION, () => {
-            // Short pause at 100% then dismiss
-            setTimeout(dismiss, 600)
+            // Bar done — show enter button, wait for user
+            setTimeout(() => {
+              statusEl.textContent = 'READY'
+              enterBtn.classList.add('visible')
+              // Click or Enter key to dismiss
+              const go = () => {
+                enterBtn.removeEventListener('click', go)
+                document.removeEventListener('keydown', onKey)
+                dismiss()
+              }
+              const onKey = (e) => { if (e.key === 'Enter') go() }
+              enterBtn.addEventListener('click', go)
+              document.addEventListener('keydown', onKey)
+            }, 300)
           })
         }, 200)
       }, 300)
