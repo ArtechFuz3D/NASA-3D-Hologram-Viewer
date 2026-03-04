@@ -1,3 +1,5 @@
+import { startIntroAudio } from './intro-audio.js'
+
 // ─────────────────────────────────────────────────────────────────
 // INTRO SEQUENCE — fully self-contained, removes itself when done
 // Drop your airlock video as: public/airlock.webm
@@ -278,9 +280,22 @@ if (!overlay) {
 
   // ── Sequence ──────────────────────────────────────────────────
   function dismiss() {
+    if (audioCtrl) audioCtrl.stop(1.0)
     overlay.classList.add('fade-out')
     setTimeout(() => overlay.remove(), 1100)
   }
+
+  // ── Procedural audio — starts on first user gesture (video autoplay counts) ──
+  // We start immediately; browsers allow AudioContext after any user gesture
+  // that triggered the page. The gain fades in over 1.8s anyway.
+  let audioCtrl = null
+  const startAudio = () => {
+    if (!audioCtrl) audioCtrl = startIntroAudio()
+  }
+  // Attempt immediate start; if blocked, retry on first click/key
+  try { startAudio() } catch {}
+  document.addEventListener('click',   startAudio, { once: true })
+  document.addEventListener('keydown',  startAudio, { once: true })
 
   // Step 1 — video fades in immediately
   requestAnimationFrame(() => video.classList.add('visible'))
