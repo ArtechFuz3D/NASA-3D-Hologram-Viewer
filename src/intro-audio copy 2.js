@@ -15,11 +15,11 @@
 //      tension that builds across the loop.
 //      Think: Inception "BRAAAM" / gravity-shift tension.
 //
-//  2 — "Ghost Signal"
-//      Dense glitchy data aesthetic. Procedurally randomised:
-//      status pings (5 tiers), stutter micro-bursts, chirp sweeps,
-//      data spray, glitch strikes, zap squeals, phase flutter.
-//      Think: Matrix green rain / Tron grid / satellite telemetry.
+//  2 — "Launch Sequence"
+//      Sci-fi computer / Matrix data aesthetic. Regular status
+//      beeps, low rumble, random glitch bursts, pentatonic
+//      chirp melody on a mechanical grid.
+//      Think: Matrix code / NASA mission control / tron grid.
 //
 // CHANGE TRACK: set INTRO_TRACK = 0 | 1 | 2
 // LIVE CROSSFADE: ctrl.setTrack(n)
@@ -285,248 +285,143 @@ function buildTrack1(SR) {
 }
 
 // ─────────────────────────────────────────────────────────────────
-//  TRACK 2 — "Ghost Signal"
-//  Glitchy, randomised sci-fi data aesthetic.
-//  Matrix / Tron / NASA telemetry — dense, alive, unpredictable.
-//
-//  Layers (all procedurally generated, no fixed schedules):
-//    • Sub rumble          — filtered noise + 35/70Hz sines
-//    • Status ping grid    — irregular sine pulses, 5 freq tiers
-//    • Stutter beeps       — random triplet/quintuplet micro-bursts
-//    • Chirp sweeps        — exponential freq glides, random pitch/dir
-//    • Data spray          — rapid duty-cycle blips, varying rate/freq
-//    • Glitch strikes      — noise+ring-mod hits, wide random pan
-//    • Dropout silences    — random micro-gaps for digital artefact feel
-//    • Hi-freq zap         — very short pitched squeal, sparse
-//    • Phase flutter       — two close sines beating fast (chorus effect)
-//    • Loop seam crossfade — last 0.1s fades to zero to prevent click
+//  TRACK 2 — "Launch Sequence"
+//  Sci-fi computer aesthetic. Matrix / NASA mission control.
+//  Status beeps | data chirps | low rumble | random glitch bursts
 // ─────────────────────────────────────────────────────────────────
 function buildTrack2(SR) {
-    const LOOP    = 24.0          // longer loop = less audible repetition
+    const LOOP    = 16.0
     const SAMPLES = Math.ceil(SR * LOOP)
     const bufL    = new Float32Array(SAMPLES)
     const bufR    = new Float32Array(SAMPLES)
+    const rng     = makePRNG(0x7a6f5b4c)
 
-    // Four independent PRNGs — keeps different layers decorrelated
-    const rngMain  = makePRNG(0x7a6f5b4c)
-    const rngGlitch= makePRNG(0xdeadface)
-    const rngBeep  = makePRNG(0x12cafe34)
-    const rngZap   = makePRNG(0xabcd0987)
-
-    // ── Waveform helpers ─────────────────────────────────────────
-    // Short-attack sine blip with configurable decay
-    function blip(t, freq, decay) {
-        return Math.sin(TAU * freq * t) * Math.exp(-t * decay) * clamp(t / 0.0008, 0, 1)
+    // Beep: pure sine pulse, very short, clean
+    function beep(t, freq, dur) {
+        if (t < 0 || t > dur + 0.008) return 0
+        const env = clamp(t / 0.002, 0, 1) *   // 2ms attack
+                    (t < dur ? 1.0 : Math.exp(-(t-dur)*300))
+        return sin(freq, t) * env
     }
 
-    // Frequency-swept chirp: sweeps from startF to endF over dur
-    function sweep(t, startF, endF, dur) {
-        if (t < 0 || t > dur) return 0
-        const p = t / dur
-        // Exponential interpolation between freqs
-        const f = startF * Math.pow(endF / startF, p)
-        // Hanning envelope
-        const env = 0.5 - 0.5 * Math.cos(Math.PI * p)
-        return Math.sin(TAU * f * t) * env
+    // Computer chirp: rapid ascending sine blip (2 partials)
+    function chirp(t, baseFreq, rate) {
+        if (t < 0 || t > 0.06) return 0
+        const f   = baseFreq * Math.pow(2, t * rate)   // freq sweeps up
+        const env = clamp(t/0.003, 0, 1) * Math.exp(-t * 40)
+        return sin(f, t) * env * 0.5
     }
 
-    // Noise burst with optional ring-mod carrier
-    function noiseBurst(t, dur, carrierFreq, rng) {
-        if (t < 0 || t > dur) return 0
-        const env    = Math.exp(-t * (6 / dur)) * clamp(t / 0.0005, 0, 1)
-        const noise  = rng()
-        const ring   = carrierFreq > 0 ? Math.sin(TAU * carrierFreq * t) : 1.0
-        return noise * ring * env
+    // Data burst: rapid fire sine blips (simulates data transmission)
+    function dataBurst(t, totalDur, blipRate, freq) {
+        if (t < 0 || t > totalDur) return 0
+        const blipPeriod = 1 / blipRate
+        const blipT      = t % blipPeriod
+        const isOn       = blipT < blipPeriod * 0.4    // 40% duty cycle
+        if (!isOn) return 0
+        const env = clamp(blipT / 0.001, 0, 1) * clamp((blipPeriod*0.4 - blipT)/0.001, 0, 1)
+        return sin(freq, t) * env * 0.3
     }
 
-    // Duty-cycle data spray: rapid on/off blips at given rate
-    function dataSpray(t, dur, rate, freq, duty) {
-        if (t < 0 || t > dur) return 0
-        const period = 1 / rate
-        const phase  = t % period
-        if (phase > period * duty) return 0
-        const env = clamp(phase / 0.0005, 0, 1) *
-                    clamp((period * duty - phase) / 0.0005, 0, 1)
-        return Math.sin(TAU * freq * t) * env * 0.35
-    }
-
-    // Phase-flutter chord: two sines beating at beatHz
-    function flutter(t, baseFreq, beatHz, amp) {
-        return (Math.sin(TAU * baseFreq * t) +
-                Math.sin(TAU * (baseFreq + beatHz) * t)) * 0.5 * amp
-    }
-
-    // ── Pre-generate all event schedules ─────────────────────────
-    // Uses seeded PRNGs so the loop is perfectly deterministic
-
-    // Helper: generate random events with min spacing
-    function makeSchedule(rng, loopLen, minGap, maxGap, gen) {
-        const events = []
-        let t = Math.abs(rng()) * minGap   // random start offset
-        while (t < loopLen) {
-            events.push(gen(t, rng))
-            t += minGap + Math.abs(rng()) * (maxGap - minGap)
-        }
-        return events
-    }
-
-    // ── STATUS PINGS — 5 frequency tiers, irregular timing ───────
-    // tier 0: 660Hz (low)  tier 1: 880Hz  tier 2: 1047Hz
-    // tier 3: 1319Hz       tier 4: 1760Hz (high)
-    const PING_FREQS = [660, 880, 1047, 1319, 1760]
-    const PINGS = makeSchedule(rngBeep, LOOP, 0.18, 0.95, (t, r) => {
-        const tierIdx  = Math.floor(Math.abs(r()) * 5)
-        const freq     = PING_FREQS[tierIdx]
-        const dur      = 0.018 + Math.abs(r()) * 0.065     // 18–83ms
-        const vol      = 0.08  + Math.abs(r()) * 0.18
-        const pan      = r() * 0.6                          // −0.6..0.6
-        return { t, freq, dur, vol, pan }
-    })
-
-    // ── STUTTER BEEPS — micro-bursts of 2–5 rapid identical pings ─
-    const STUTTERS = makeSchedule(rngBeep, LOOP, 0.4, 2.2, (t, r) => {
-        const freq   = 440 + Math.abs(r()) * 1760
-        const count  = 2 + Math.floor(Math.abs(r()) * 4)   // 2–5 blips
-        const step   = 0.022 + Math.abs(r()) * 0.028        // spacing
-        const vol    = 0.10 + Math.abs(r()) * 0.15
-        const pan    = r() * 0.9
-        const blips  = []
-        for (let i = 0; i < count; i++)
-            blips.push({ dt: i * step, freq, vol: vol * (1 - i*0.12) })
-        return { t, blips, pan }
-    })
-
-    // ── CHIRP SWEEPS — random direction, pitch range, duration ────
-    const CHIRPS = makeSchedule(rngGlitch, LOOP, 0.25, 1.8, (t, r) => {
-        const lo  = 200  + Math.abs(r()) * 800
-        const hi  = lo   + 300 + Math.abs(r()) * 3000
-        const up  = r() > 0                                 // up or down
-        const dur = 0.02 + Math.abs(r()) * 0.12
-        const vol = 0.08 + Math.abs(r()) * 0.22
-        const pan = r() * 0.85
-        return { t, startF: up ? lo : hi, endF: up ? hi : lo, dur, vol, pan }
-    })
-
-    // ── DATA SPRAY BURSTS — random rate, freq, duration ──────────
-    const SPRAYS = makeSchedule(rngMain, LOOP, 0.3, 2.5, (t, r) => {
-        const freq  = 880  + Math.abs(r()) * 3520
-        const rate  = 40   + Math.abs(r()) * 280            // 40–320 blips/s
-        const duty  = 0.15 + Math.abs(r()) * 0.45
-        const dur   = 0.05 + Math.abs(r()) * 0.5
-        const vol   = 0.06 + Math.abs(r()) * 0.12
-        const pan   = r() * 0.9
-        return { t, freq, rate, duty, dur, vol, pan }
-    })
-
-    // ── GLITCH STRIKES — noise+ring-mod, loud, sharp, wide pan ───
-    const STRIKES = makeSchedule(rngGlitch, LOOP, 0.15, 1.4, (t, r) => {
-        const carrier = 80  + Math.abs(r()) * 4000
-        const dur     = 0.003 + Math.abs(r()) * 0.04
-        const vol     = 0.15 + Math.abs(r()) * 0.35
-        const pan     = r()                                  // full −1..1
-        return { t, carrier, dur, vol, pan }
-    })
-
-    // ── ZAP SQUEALS — very short high-freq pitched noise ─────────
-    const ZAPS = makeSchedule(rngZap, LOOP, 0.6, 3.5, (t, r) => {
-        const freq = 2000 + Math.abs(r()) * 6000
-        const dur  = 0.004 + Math.abs(r()) * 0.012
-        const vol  = 0.12 + Math.abs(r()) * 0.20
-        const pan  = r() * 0.7
-        return { t, freq, dur, vol, pan }
-    })
-
-    // ── PHASE FLUTTER CHORDS — 3 persistent beating pairs ────────
-    // These run throughout, modulated slowly — the "alive computer" feel
-    const FLUTTER_VOICES = [
-        { base: 220.0,  beat: 1.3,  amp: 0.040, lfoF: 1/9.1,  lfoP: 0.0 },
-        { base: 440.5,  beat: 2.1,  amp: 0.028, lfoF: 1/7.3,  lfoP: 1.4 },
-        { base: 880.2,  beat: 3.7,  amp: 0.018, lfoF: 1/11.7, lfoP: 2.8 },
+    // Status beep schedule: [time, freq, dur]
+    const BEEPS = [
+        // Primary beep sequence — every 1s alternating freq
+        [0.0,  880, 0.040], [1.0,  880, 0.040], [2.0,  880, 0.040],
+        [3.0, 1047, 0.060], // C6 — confirmation tone
+        [4.0,  880, 0.040], [5.0,  880, 0.040], [6.0,  880, 0.040],
+        [7.0, 1319, 0.080], // E6 — alert tone
+        [8.0,  880, 0.040], [9.0,  880, 0.040], [10.0, 880, 0.040],
+        [11.0,1047, 0.060],
+        [12.0, 880, 0.040], [13.0, 880, 0.040], [14.0, 880, 0.040],
+        [15.0, 660, 0.100], // lower end-of-sequence tone
+        // Secondary offset beeps (softer, 0.5s offset) — faster pulse
+        [0.5, 1760, 0.018], [1.5, 1760, 0.018], [2.5, 1760, 0.018],
+        [3.5, 1760, 0.018], [4.5, 1760, 0.018], [5.5, 1760, 0.018],
+        [6.5, 1760, 0.018], [7.5, 1760, 0.018], [8.5, 1760, 0.018],
+        [9.5, 1760, 0.018],[10.5, 1760, 0.018],[11.5, 1760, 0.018],
+        [12.5,1760, 0.018],[13.5, 1760, 0.018],[14.5, 1760, 0.018],
     ]
 
-    // ── Low-pass filter for rumble ────────────────────────────────
-    const rumbleLP = makeLPF(85, SR)
+    // Chirp melody: ascending pentatonic (Bb pentatonic major)
+    // Bb C D F G  →  midi 58 60 62 65 67 (one octave up)
+    const PEN_FREQS = [932, 1047, 1175, 1397, 1568]  // Bb5 C6 D6 F6 G6
+    const CHIRPS = []
+    const CHIRP_TIMES = [0.2, 1.2, 2.2, 3.2, 4.2, 5.2, 6.2, 7.2,
+                         8.2, 9.2,10.2,11.2,12.2,13.2,14.2,15.2]
+    CHIRP_TIMES.forEach((ct, idx) => {
+        const freq = PEN_FREQS[idx % PEN_FREQS.length]
+        // Ascending pattern: every 4 chirps go up, then reset
+        const octShift = Math.floor(idx / 5) % 2   // shift up after 5
+        CHIRPS.push([ct, freq * (octShift ? 1.5 : 1.0), 3.5])
+    })
 
-    // ── Render ───────────────────────────────────────────────────
+    // Data burst schedule
+    const DATA_BURSTS = [
+        [0.10, 0.38, 120, 2093],   // fast data C7
+        [2.10, 0.28,  80, 1760],
+        [4.10, 0.44, 100, 2349],   // D7
+        [8.10, 0.38, 120, 2093],
+        [10.10,0.28,  80, 1760],
+        [12.10,0.44, 100, 2349],
+    ]
+
+    // Glitch bursts: random noise + pitched squeal
+    const GLITCH_TIMES = []
+    const rngG = makePRNG(0xbeef1234)
+    let gc = 0.7
+    while (gc < LOOP) {
+        gc += 0.8 + Math.abs(rngG()) * 1.6
+        if (gc < LOOP) GLITCH_TIMES.push({ t: gc, freq: 200 + Math.abs(rngG()) * 3600, dur: 0.008 + Math.abs(rngG()) * 0.025 })
+    }
+
+    // Low rumble filter
+    const rumbleLP = makeLPF(90, SR)
+
     for (let i = 0; i < SAMPLES; i++) {
         const t = i / SR
         let L = 0, R = 0
 
-        // Crossfade loop seam: last 80ms fades to zero
-        const seamEnv = t > LOOP - 0.08
-            ? (LOOP - t) / 0.08
-            : (t < 0.08 ? t / 0.08 : 1.0)
-
-        // ── Sub rumble ────────────────────────────────────────────
-        const rumble = rumbleLP(rngMain() * 0.12) * 0.65
-                     + Math.sin(TAU * 35 * t) * 0.09
-                     + Math.sin(TAU * 70 * t) * 0.04
+        // ── Low rumble: filtered noise + 35Hz sub ────────────────
+        const rumble = rumbleLP(rng() * 0.15) * 0.7
+                     + sin(35, t) * 0.10
+                     + sin(70, t) * 0.05
         L += rumble; R += rumble
 
-        // ── Phase flutter (continuous) ────────────────────────────
-        for (const v of FLUTTER_VOICES) {
-            const lfo = 0.4 + 0.6 * (0.5 + 0.5 * Math.sin(TAU * v.lfoF * t + v.lfoP))
-            const f   = flutter(t, v.base, v.beat, v.amp * lfo)
-            L += f; R += f
+        // ── Status beeps (centre, clean) ─────────────────────────
+        for (const [bt, bf, bd] of BEEPS) {
+            const nt  = t - bt
+            const vol = bf > 1000 ? 0.08 : (bf > 900 ? 0.20 : 0.16)
+            const b   = beep(nt, bf, bd) * vol
+            L += b; R += b
         }
 
-        // ── Status pings ──────────────────────────────────────────
-        for (const p of PINGS) {
-            const nt = t - p.t
-            if (nt < 0 || nt > p.dur + 0.01) continue
-            const b  = blip(nt, p.freq, 80 / p.dur) * p.vol
-            L += b * (0.5 - p.pan * 0.5)
-            R += b * (0.5 + p.pan * 0.5)
+        // ── Chirp melody (slightly right of centre) ───────────────
+        for (const [ct, cf, cr] of CHIRPS) {
+            const nt = t - ct
+            const c  = chirp(nt, cf, cr) * 0.22
+            L += c * 0.7; R += c * 1.0
         }
 
-        // ── Stutter beeps ─────────────────────────────────────────
-        for (const s of STUTTERS) {
-            for (const bl of s.blips) {
-                const nt = t - s.t - bl.dt
-                if (nt < 0 || nt > 0.018) continue
-                const b  = blip(nt, bl.freq, 220) * bl.vol
-                L += b * (0.5 - s.pan * 0.5)
-                R += b * (0.5 + s.pan * 0.5)
-            }
+        // ── Data bursts (panned left — like a data terminal) ──────
+        for (const [dt, dd, dr, df] of DATA_BURSTS) {
+            const nt = t - dt
+            const d  = dataBurst(nt, dd, dr, df) * 0.15
+            L += d * 1.0; R += d * 0.4
         }
 
-        // ── Chirp sweeps ──────────────────────────────────────────
-        for (const c of CHIRPS) {
-            const nt = t - c.t
-            if (nt < 0 || nt > c.dur) continue
-            const sw = sweep(nt, c.startF, c.endF, c.dur) * c.vol
-            L += sw * (0.5 - c.pan * 0.5)
-            R += sw * (0.5 + c.pan * 0.5)
+        // ── Glitch bursts (random pan) ────────────────────────────
+        for (const { t: gt, freq: gf, dur: gd } of GLITCH_TIMES) {
+            const nt  = t - gt
+            if (nt < 0 || nt > gd + 0.005) continue
+            const env = Math.exp(-nt * 180) * clamp(nt / 0.0005, 0, 1)
+            const g   = (rng() * 0.5 + sin(gf, nt) * 0.5) * env * 0.18
+            // Deterministic pan per glitch hit
+            const pan = 0.3 + 0.7 * (((gf * 137) % 100) / 100)
+            L += g * (1 - pan); R += g * pan
         }
 
-        // ── Data spray ────────────────────────────────────────────
-        for (const sp of SPRAYS) {
-            const nt = t - sp.t
-            const d  = dataSpray(nt, sp.dur, sp.rate, sp.freq, sp.duty) * sp.vol
-            L += d * (0.5 - sp.pan * 0.5)
-            R += d * (0.5 + sp.pan * 0.5)
-        }
-
-        // ── Glitch strikes ────────────────────────────────────────
-        for (const g of STRIKES) {
-            const nt = t - g.t
-            if (nt < 0 || nt > g.dur + 0.003) continue
-            const nb = noiseBurst(nt, g.dur, g.carrier, rngGlitch) * g.vol
-            L += nb * (0.5 - g.pan * 0.5)
-            R += nb * (0.5 + g.pan * 0.5)
-        }
-
-        // ── Zap squeals ───────────────────────────────────────────
-        for (const z of ZAPS) {
-            const nt = t - z.t
-            if (nt < 0 || nt > z.dur) continue
-            const zp = blip(nt, z.freq, 400) * z.vol
-            L += zp * (0.5 - z.pan * 0.5)
-            R += zp * (0.5 + z.pan * 0.5)
-        }
-
-        bufL[i] = softclip(L * seamEnv * 0.72)
-        bufR[i] = softclip(R * seamEnv * 0.72)
+        bufL[i] = softclip(L * 0.78)
+        bufR[i] = softclip(R * 0.78)
     }
     return { bufL, bufR, SAMPLES }
 }
