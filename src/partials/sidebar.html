@@ -1,0 +1,34 @@
+<!-- ═══ LEFT SIDEBAR — model browser ══════════════════════════════ -->
+<aside id="sidebar">
+  <div class="sidebar-header">
+    <div class="sidebar-tabs">
+      <button class="stab active" data-tab="models">Models</button>
+      <button class="stab" data-tab="favorites">Saved</button>
+    </div>
+  </div>
+
+  <div class="sidebar-search">
+    <svg width="13" height="13" viewBox="0 0 13 13" class="search-icon">
+      <circle cx="5.5" cy="5.5" r="4" stroke="currentColor" stroke-width="1.2" fill="none"/>
+      <path d="M9 9l2.5 2.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+    </svg>
+    <input type="text" id="searchInput" placeholder="Search models…" autocomplete="off" />
+  </div>
+
+  <div class="category-row">
+    <button class="ctab active" data-cat="all">All</button>
+    <button class="ctab" data-cat="spacecraft">Spacecraft</button>
+    <button class="ctab" data-cat="rovers">Rovers</button>
+    <button class="ctab" data-cat="stations">Stations</button>
+  </div>
+
+  <div id="model-grid">
+    <div class="grid-loading">
+      <div class="spinner"></div>
+      <div id="status">Fetching models…</div>
+    </div>
+  </div>
+
+  <!-- Hidden select kept for JS compatibility -->
+  <select id="modelSelect" style="display:none" aria-hidden="true"></select>
+</aside>

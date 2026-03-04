@@ -1,0 +1,47 @@
+<!-- ═══ PLANET SCENE PANEL ══════════════════════════════════════════
+     Opened by View menu. z-index 500 — above everything.
+     Controls sent to planet-iframe via postMessage.
+══════════════════════════════════════════════════════════════════ -->
+<div id="planet-panel" aria-hidden="true">
+  <div id="planet-panel-inner">
+
+    <div id="planet-panel-header">
+      <span id="planet-panel-title">🌍 Planet Scene</span>
+      <button id="planet-panel-close" aria-label="Close panel">✕</button>
+    </div>
+
+    <div class="pp-section">
+      <div class="pp-label">Planet Type</div>
+      <div class="pp-presets">
+        <button class="pp-preset active" data-planet="0" title="Earth">🌍</button>
+        <button class="pp-preset"        data-planet="1" title="Mars">🔴</button>
+        <button class="pp-preset"        data-planet="2" title="Ice World">🧊</button>
+        <button class="pp-preset"        data-planet="3" title="Lava World">🌋</button>
+        <button class="pp-preset"        data-planet="4" title="Alien">🪐</button>
+      </div>
+    </div>
+
+    <div class="pp-section">
+      <div class="pp-label">Surface</div>
+      <div class="pp-row"><span>🗺️ Surface Detail</span> <div class="pp-tog on" data-flag="surface"></div></div>
+      <div class="pp-row"><span>⛰️ Displacement</span>   <div class="pp-tog on" data-flag="disp"></div></div>
+      <div class="pp-row"><span>🌃 Night Lights</span>   <div class="pp-tog on" data-flag="lights"></div></div>
+    </div>
+
+    <div class="pp-section">
+      <div class="pp-label">Atmosphere</div>
+      <div class="pp-row"><span>☁️ Vol. Clouds</span> <div class="pp-tog on" data-flag="clouds"></div></div>
+      <div class="pp-row"><span>🌫️ Atmosphere</span> <div class="pp-tog on" data-flag="atmo"></div></div>
+    </div>
+
+    <div class="pp-section">
+      <div class="pp-label">Extras</div>
+      <div class="pp-row"><span>💍 Rings</span> <div class="pp-tog"    data-flag="rings"></div></div>
+      <div class="pp-row"><span>🌕 Moon</span>  <div class="pp-tog"    data-flag="moon"></div></div>
+      <div class="pp-row"><span>✨ Stars</span> <div class="pp-tog on" data-flag="stars"></div></div>
+    </div>
+
+    <div class="pp-hint">LMB · Rotate &nbsp;|&nbsp; RMB · Sun &nbsp;|&nbsp; Scroll · Zoom</div>
+
+  </div>
+</div>
