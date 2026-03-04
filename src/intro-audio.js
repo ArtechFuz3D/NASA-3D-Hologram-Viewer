@@ -543,36 +543,42 @@ export function startIntroAudio(trackIndex = INTRO_TRACK) {
 
     const SR = ctx.sampleRate
 
-    // Render all three tracks
-    console.log('[intro-audio] rendering…')
-    const t0     = performance.now()
-    const tracks = [buildTrack0(SR), buildTrack1(SR), buildTrack2(SR)]
-    console.log(`[intro-audio] done in ${(performance.now()-t0).toFixed(0)}ms`)
+    const BUILDERS = [buildTrack0, buildTrack1, buildTrack2]
 
-    const bufs = tracks.map(({ bufL, bufR, SAMPLES }) => {
-        const buf = ctx.createBuffer(2, SAMPLES, SR)
-        buf.copyToChannel(bufL, 0)
-        buf.copyToChannel(bufR, 1)
-        return buf
-    })
+    // Buffers built on demand — only active track renders immediately,
+    // others are built in the background after a short delay.
+    const bufs    = new Array(BUILDERS.length).fill(null)
+    const sources = new Array(BUILDERS.length).fill(null)
 
     const masterGain = ctx.createGain()
     masterGain.gain.setValueAtTime(0, ctx.currentTime)
     masterGain.gain.linearRampToValueAtTime(0.82, ctx.currentTime + 2.2)
     masterGain.connect(ctx.destination)
 
-    const gainNodes = bufs.map(() => {
+    const gainNodes = BUILDERS.map(() => {
         const g = ctx.createGain()
         g.gain.value = 0
         g.connect(masterGain)
         return g
     })
 
-    const sources = new Array(bufs.length).fill(null)
+    function buildBuf(idx) {
+        if (bufs[idx]) return bufs[idx]
+        console.log(`[intro-audio] rendering track ${idx}…`)
+        const t0 = performance.now()
+        const { bufL, bufR, SAMPLES } = BUILDERS[idx](SR)
+        const buf = ctx.createBuffer(2, SAMPLES, SR)
+        buf.copyToChannel(bufL, 0)
+        buf.copyToChannel(bufR, 1)
+        bufs[idx] = buf
+        console.log(`[intro-audio] track ${idx} done in ${(performance.now()-t0).toFixed(0)}ms`)
+        return buf
+    }
+
     let active = -1
 
     function playTrack(idx, fadeDur = 0.9) {
-        if (idx === active || idx < 0 || idx >= bufs.length) return
+        if (idx === active || idx < 0 || idx >= BUILDERS.length) return
         const prev = active
         active = idx
 
@@ -584,15 +590,25 @@ export function startIntroAudio(trackIndex = INTRO_TRACK) {
             sources[prev] = null
         }
 
+        // Build this track's buffer synchronously (it's the one we need now)
+        const buf = buildBuf(idx)
+
         gainNodes[idx].gain.setValueAtTime(0, ctx.currentTime)
         gainNodes[idx].gain.linearRampToValueAtTime(1, ctx.currentTime + fadeDur)
 
         const src    = ctx.createBufferSource()
-        src.buffer   = bufs[idx]
+        src.buffer   = buf
         src.loop     = true
         src.connect(gainNodes[idx])
         src.start()
         sources[idx] = src
+
+        // Build remaining tracks in background after a delay
+        BUILDERS.forEach((_, i) => {
+            if (i !== idx && !bufs[i]) {
+                setTimeout(() => { try { buildBuf(i) } catch {} }, 800 + i * 400)
+            }
+        })
     }
 
     playTrack(trackIndex, 0.15)

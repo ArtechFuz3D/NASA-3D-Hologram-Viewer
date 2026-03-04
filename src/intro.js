@@ -289,16 +289,33 @@ if (!overlay) {
   // We start immediately; browsers allow AudioContext after any user gesture
   // that triggered the page. The gain fades in over 1.8s anyway.
   let audioCtrl = null
+  let audioScheduled = false
+
   const startAudio = () => {
-    if (!audioCtrl) audioCtrl = startIntroAudio()
+    if (audioCtrl || audioScheduled) return
+    audioScheduled = true
+    // Defer audio render until AFTER the browser has painted the overlay.
+    // buildTrack*() is synchronous and CPU-heavy — running it immediately
+    // blocks the main thread and prevents the overlay from appearing first.
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        setTimeout(() => {
+          try { audioCtrl = startIntroAudio() } catch(e) { console.warn('audio:', e) }
+        }, 0)
+      })
+    })
   }
-  // Attempt immediate start; if blocked, retry on first click/key
-  try { startAudio() } catch {}
+
   document.addEventListener('click',   startAudio, { once: true })
   document.addEventListener('keydown',  startAudio, { once: true })
 
-  // Step 1 — video fades in immediately
-  requestAnimationFrame(() => video.classList.add('visible'))
+  // Step 1 — video fades in immediately (before any audio work)
+  requestAnimationFrame(() => {
+    video.classList.add('visible')
+    // Kick off audio after first paint — user interaction not required
+    // for AudioContext if triggered within a user-gesture-initiated page load
+    startAudio()
+  })
 
   // Step 2 — content fades in after 400ms, logo first
   setTimeout(() => {
