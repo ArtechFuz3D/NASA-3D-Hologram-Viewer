@@ -198,7 +198,7 @@ if (!overlay) {
     <div id="intro-scanlines"></div>
     <div id="intro-content">
 
- <img id="intro-logo" src="/logo.svg" width="80" height="80" alt="Logo" />
+ <img id="intro-logo" src="logo.svg" width="80" height="80" alt="Logo" />
 
       <div id="intro-title"><span id="intro-title-text"></span><span id="intro-cursor"></span></div>
       <div id="intro-author">${AUTHOR_TEXT}</div>
