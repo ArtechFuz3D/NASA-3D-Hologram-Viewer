@@ -1,0 +1,19 @@
+<!-- ═══ VIEWPORT — canvas + overlays ══════════════════════════════ -->
+<main id="viewport">
+  <div id="earth-bg"></div>
+  <iframe id="planet-iframe" tabindex="-1" aria-hidden="true"></iframe>
+  <canvas class="webgl"></canvas>
+
+  <!-- Corner labels -->
+  <div class="vp-label top-left">PERSPECTIVE · HOLOGRAM</div>
+  <div class="vp-label top-right" id="model-name-display">SELECT A MODEL</div>
+  <div class="vp-label bot-left"  id="poly-count"></div>
+  <div class="vp-label bot-right" id="load-progress"></div>
+
+  <!-- Axis indicator -->
+  <div id="axis-gizmo">
+    <div class="gizmo-axis" style="color:#ff4d4d">X</div>
+    <div class="gizmo-axis" style="color:#4dff91">Y</div>
+    <div class="gizmo-axis" style="color:#4d9fff">Z</div>
+  </div>
+</main>

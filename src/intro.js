@@ -7,7 +7,7 @@
 const AIRLOCK_SRC   = './airlockc1.webm'
 const TITLE_TEXT    = 'NASA 3D MODEL VIEWER'
 const AUTHOR_TEXT   = 'ArtechFuz3D'
-const BAR_DURATION  = 3500  // ms — cinematic progress bar fill time
+const BAR_DURATION  = 2300  // ms — cinematic progress bar fill time
 const TYPEWRITER_DELAY = 40 // ms per character
 
 // ── Inject styles ────────────────────────────────────────────────
@@ -67,12 +67,12 @@ style.textContent = `
 #intro-logo.visible { opacity: 1; transition: opacity 1s ease; }
 
 #intro-title {
-  font-size: clamp(18px, 3vw, 28px);
+  font-size: clamp(72px, 3vw, 42px);
   font-weight: 700;
   letter-spacing: 0.28em;
   color: #d0e8ff;
   text-transform: uppercase;
-  min-height: 1.4em;
+  min-height: 0.4em;
   text-align: center;
   margin-bottom: 8px;
 }
@@ -89,7 +89,7 @@ style.textContent = `
 
 #intro-author {
   font-family: 'JetBrains Mono', monospace;
-  font-size: 11px;
+  font-size: 14px;
   letter-spacing: 0.2em;
   color: #70c1ff;
   opacity: 0;
@@ -129,8 +129,8 @@ style.textContent = `
   display: flex;
   justify-content: space-between;
   font-family: 'JetBrains Mono', monospace;
-  font-size: 9px;
-  letter-spacing: 0.12em;
+  font-size: 11px;
+  letter-spacing: 0.13em;
   color: rgba(112,193,255,0.5);
   text-transform: uppercase;
 }
@@ -197,11 +197,9 @@ if (!overlay) {
     <video id="intro-video" src="${AIRLOCK_SRC}" autoplay muted loop playsinline></video>
     <div id="intro-scanlines"></div>
     <div id="intro-content">
-      <svg id="intro-logo" width="72" height="72" viewBox="0 0 20 20" fill="none">
-        <circle cx="10" cy="10" r="8" stroke="#70c1ff" stroke-width="1.5"/>
-        <ellipse cx="10" cy="10" rx="8" ry="3.5" stroke="#70c1ff" stroke-width="1.5"/>
-        <line x1="10" y1="2" x2="10" y2="18" stroke="#70c1ff" stroke-width="1.5"/>
-      </svg>
+
+ <img id="intro-logo" src="logo.svg" width="80" height="80" alt="Logo" />
+
       <div id="intro-title"><span id="intro-title-text"></span><span id="intro-cursor"></span></div>
       <div id="intro-author">${AUTHOR_TEXT}</div>
       <div id="intro-bar-wrap">

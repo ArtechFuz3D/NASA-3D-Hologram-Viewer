@@ -7,19 +7,35 @@
   --bg-panel2:     #13161f;
   --bg-hover:      #1a1e2a;
   --bg-active:     #1e2535;
-  --border:        #1e2535;
-  --border-bright: #2a3248;
+  --border:        #232840;
+  --border-bright: #303a58;
   --accent:        #70c1ff;
   --accent-dim:    rgba(112,193,255,0.15);
   --accent-glow:   rgba(112,193,255,0.08);
-  --text-primary:  #d0dff0;
-  --text-secondary:#6b7fa0;
-  --text-dim:      #3a4560;
-  --toolbar-h:     38px;
-  --sidebar-w:     200px;
-  --statusbar-h:   24px;
-  --font-ui:       'Rajdhani', sans-serif;
-  --font-mono:     'JetBrains Mono', monospace;
+  --text-primary:  #e0ecff;
+  --text-secondary:#98afd4;
+  --text-dim:      #5a6e96;
+  --toolbar-h:     44px;
+  --sidebar-w:     210px;
+  --statusbar-h:   26px;
+  /* ── FONT SWAP ─────────────────────────────────────────────────────
+     To change font: uncomment ONE --font-ui line, comment the rest.
+     Mono font: uncomment ONE --font-mono line, comment the rest.
+     All fonts are pre-loaded in index.html so swaps are instant.
+  ────────────────────────────────────────────────────────────────── */
+
+  /* UI font options — uncomment one */
+  --font-ui: 'Exo 2', sans-serif;             /* ← ACTIVE — geometric, technical, excellent legibility */
+  /* --font-ui: 'Titillium Web', sans-serif;     sharp, condensed, aerospace-report feel */
+  /* --font-ui: 'Space Grotesk', sans-serif;     modern geometric, space-themed, very clean */
+  /* --font-ui: 'Outfit', sans-serif;            friendly geometric, clean at all sizes */
+  /* --font-ui: 'DM Sans', sans-serif;           neutral, ultra-readable, lets UI breathe */
+  /* --font-ui: 'Rajdhani', sans-serif;          original — angular, dense, military-HUD feel */
+
+  /* Mono font options — uncomment one */
+  --font-mono: 'DM Mono', monospace;           /* ← ACTIVE — understated, very readable for values */
+  /* --font-mono: 'JetBrains Mono', monospace;   original — developer-grade, slightly heavier */
+  /* --font-mono: 'IBM Plex Mono', monospace;    clean NASA-report feel, excellent numerals */
 }
 
 /* ─────────────────────────────────────────
@@ -33,7 +49,9 @@ html, body {
   background: var(--bg-base);
   color: var(--text-primary);
   font-family: var(--font-ui);
-  font-size: 13px;
+  font-size: 42px;
+  font-size: larger;
+  /* font-variant: small-caps; */
   -webkit-font-smoothing: antialiased;
 }
 
@@ -61,15 +79,35 @@ input  { font-family: var(--font-ui); color: inherit; background: none; border: 
 .toolbar-center{ display: flex; align-items: center; justify-content: center; flex: 1; }
 .toolbar-right { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
 
-.app-logo {
-  display: flex; align-items: center; gap: 8px;
-  font-size: 12px; font-weight: 700; letter-spacing: 0.12em;
+/* .app-logo {
+  display: flex; 
+  align-items: center; 
+  gap: 8px;
+  font-size: 13px; 
+  font-weight: 700; 
+  letter-spacing: 0.10em;
   color: var(--accent); white-space: nowrap;
+} */
+ .app-logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.10em;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+.app-logo-icon {
+  width: 20px;
+  height: 20px;
+  display: block; /* removes inline baseline weirdness */
 }
 
 .toolbar-menu { display: flex; gap: 2px; }
 .menu-btn {
-  padding: 4px 10px; font-size: 12px; font-weight: 500;
+  padding: 4px 12px; font-size: 13px; font-weight: 500;
   color: var(--text-secondary); border-radius: 3px;
   letter-spacing: 0.04em;
   transition: color 0.15s, background 0.15s;
@@ -80,9 +118,9 @@ input  { font-family: var(--font-ui); color: inherit; background: none; border: 
 .toolbar-tools { display: flex; align-items: center; gap: 2px; }
 
 .tool-btn {
-  width: 28px; height: 26px;
+  width: 30px; height: 28px;
   display: flex; align-items: center; justify-content: center;
-  border-radius: 3px; font-size: 10px; font-weight: 700;
+  border-radius: 3px; font-size: 11px; font-weight: 700;
   letter-spacing: 0.05em; color: var(--text-secondary);
   transition: color 0.15s, background 0.15s;
 }
@@ -102,16 +140,23 @@ input  { font-family: var(--font-ui); color: inherit; background: none; border: 
 /* FPS */
 #fps-display {
   display: flex; align-items: baseline; gap: 3px;
-  font-family: var(--font-mono); font-size: 11px;
+  font-family: var(--font-mono); font-size: 12px;
 }
 #fps-value { color: var(--accent); font-weight: 500; }
-.fps-label { color: var(--text-dim); font-size: 9px; letter-spacing: 0.1em; }
+.fps-label { color: var(--text-dim); font-size: 10px; letter-spacing: 0.08em; }
 
 .user-avatar {
-  width: 26px; height: 26px; border-radius: 50%;
-  overflow: hidden; border: 1px solid var(--border-bright);
+  width: 32px; 
+  height: 32px; 
+  border-radius: 50%;
+  overflow: hidden; 
+  border: 1px solid var(--border-bright);
   background: var(--bg-hover);
-  display: flex; align-items: center; justify-content: center;
+  display: flex; 
+  align-items: center; 
+  justify-content: center;
+  /* margin-left: 1rem; */
+  /* margin-right: .5rem; */
 }
 .user-avatar img { width: 100%; height: 100%; object-fit: cover; }
 
@@ -147,7 +192,7 @@ input  { font-family: var(--font-ui); color: inherit; background: none; border: 
 }
 .stab {
   flex: 1; padding: 9px 0;
-  font-size: 11px; font-weight: 600; letter-spacing: 0.08em;
+  font-size: 12px; font-weight: 600; letter-spacing: 0.06em;
   color: var(--text-dim); text-transform: uppercase;
   border-bottom: 2px solid transparent;
   transition: color 0.15s, border-color 0.15s;
@@ -164,7 +209,7 @@ input  { font-family: var(--font-ui); color: inherit; background: none; border: 
 }
 .search-icon { color: var(--text-dim); flex-shrink: 0; }
 #searchInput {
-  width: 100%; font-size: 12px; color: var(--text-primary);
+  width: 100%; font-size: 13px; color: var(--text-primary);
 }
 #searchInput::placeholder { color: var(--text-dim); }
 
@@ -175,7 +220,7 @@ input  { font-family: var(--font-ui); color: inherit; background: none; border: 
   border-bottom: 1px solid var(--border);
 }
 .ctab {
-  padding: 3px 8px; font-size: 10px; font-weight: 600;
+  padding: 4px 9px; font-size: 11px; font-weight: 600;
   letter-spacing: 0.06em; text-transform: uppercase;
   border-radius: 2px; color: var(--text-dim);
   border: 1px solid transparent;
@@ -223,7 +268,7 @@ input  { font-family: var(--font-ui); color: inherit; background: none; border: 
   background: var(--bg-panel2);
   border: 1px solid var(--border);
   border-radius: 4px;
-  padding: 8px 6px;
+  padding: 10px 6px;
   cursor: pointer;
   display: flex; flex-direction: column;
   align-items: center; gap: 6px;
@@ -252,11 +297,11 @@ input  { font-family: var(--font-ui); color: inherit; background: none; border: 
   border-radius: 3px;
   border: 1px solid var(--border);
   color: var(--accent);
-  font-size: 20px;
+  font-size: 22px;
 }
 
 .model-label {
-  font-size: 9.5px; font-weight: 600;
+  font-size: 11px; font-weight: 600;
   letter-spacing: 0.04em;
   color: var(--text-secondary);
   text-align: center;
@@ -266,9 +311,29 @@ input  { font-family: var(--font-ui); color: inherit; background: none; border: 
 }
 
 .model-ext {
-  font-size: 8px; font-family: var(--font-mono);
+  font-size: 10px; font-family: var(--font-mono);
   color: var(--text-dim); text-transform: uppercase;
 }
+
+/* Favourite heart button — top-right corner of card */
+.card-fav {
+  position: absolute;
+  top: 5px; right: 5px;
+  width: 20px; height: 20px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 3px;
+  color: var(--text-dim);
+  opacity: 0;
+  transition: opacity 0.15s, color 0.15s, background 0.15s;
+  z-index: 2;
+}
+.model-card:hover .card-fav { opacity: 1; }
+.card-fav:hover { color: #ff6b8a; background: rgba(255,107,138,0.1); }
+.card-fav.on {
+  opacity: 1;
+  color: #ff6b8a;
+}
+.card-fav.on svg { fill: #ff6b8a; stroke: #ff6b8a; }
 
 /* ─────────────────────────────────────────
    VIEWPORT
@@ -371,7 +436,7 @@ canvas.webgl {
 .vp-label {
   position: absolute;
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 11px;
   color: var(--text-dim);
   letter-spacing: 0.08em;
   pointer-events: none;
@@ -410,7 +475,7 @@ canvas.webgl {
   padding: 0 10px;
   z-index: 100;
   font-family: var(--font-mono);
-  font-size: 10px; color: var(--text-dim);
+  font-size: 11px; color: var(--text-dim);
 }
 
 .sb-left, .sb-right {
@@ -501,11 +566,11 @@ canvas.webgl {
 .pp-section { margin-bottom: 11px; }
 
 .pp-label {
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 700;
-  letter-spacing: 0.16em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--text-dim);
+  color: var(--text-secondary);
   margin-bottom: 7px;
 }
 
@@ -540,8 +605,8 @@ canvas.webgl {
   align-items: center;
   justify-content: space-between;
   margin: 5px 0;
-  font-size: 12px;
-  color: var(--text-secondary);
+  font-size: 13px;
+  color: var(--text-primary);
 }
 
 /* Toggle switch */
@@ -574,7 +639,7 @@ canvas.webgl {
 /* Hint footer */
 .pp-hint {
   margin-top: 12px;
-  font-size: 10px;
+  font-size: 11px;
   color: var(--text-dim);
   text-align: center;
   letter-spacing: 0.04em;
@@ -670,13 +735,13 @@ canvas.webgl {
 .rp-pane.active { display: block; }
 
 .rp-pane-title {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0.15em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--accent);
-  margin-bottom: 10px;
-  padding-bottom: 6px;
+  margin-bottom: 12px;
+  padding-bottom: 7px;
   border-bottom: 1px solid var(--border);
 }
 
@@ -689,12 +754,12 @@ canvas.webgl {
 .rp-section:last-child { border-bottom: none; }
 
 .rp-label {
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 700;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--text-dim);
-  margin-bottom: 6px;
+  color: var(--text-secondary);
+  margin-bottom: 7px;
 }
 
 /* Row */
@@ -706,11 +771,11 @@ canvas.webgl {
   gap: 6px;
 }
 .rp-lbl {
-  font-size: 11px;
-  color: var(--text-secondary);
+  font-size: 12px;
+  color: var(--text-primary);
   white-space: nowrap;
   flex-shrink: 0;
-  min-width: 60px;
+  min-width: 64px;
 }
 
 /* Slider */
@@ -747,9 +812,9 @@ canvas.webgl {
 }
 .rp-val {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 11px;
   color: var(--accent);
-  min-width: 30px;
+  min-width: 32px;
   text-align: right;
 }
 
@@ -798,8 +863,8 @@ canvas.webgl {
 }
 .seg-btn {
   flex: 1;
-  padding: 4px 2px;
-  font-size: 10px;
+  padding: 5px 2px;
+  font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.04em;
   border-radius: 3px;
@@ -827,7 +892,7 @@ canvas.webgl {
 .bg-tile:hover:not(.active) { border-color: var(--border-bright); }
 .bg-tile.active { border-color: var(--accent); background: var(--accent-dim); }
 .bg-tile-icon { font-size: 18px; margin-bottom: 2px; }
-.bg-tile span { font-size: 9.5px; font-weight: 600; color: var(--text-secondary); letter-spacing: 0.06em; display: block; }
+.bg-tile span { font-size: 11px; font-weight: 600; color: var(--text-secondary); letter-spacing: 0.06em; display: block; }
 
 /* Select */
 .rp-select {
@@ -855,10 +920,10 @@ canvas.webgl {
   width: 100%;
   padding: 5px;
   margin-top: 4px;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   font-family: var(--font-ui);
-  color: var(--text-secondary);
+  color: var(--text-primary);
   background: var(--bg-panel2);
   border: 1px solid var(--border-bright);
   border-radius: 4px;
@@ -870,7 +935,7 @@ canvas.webgl {
 /* Read-only value */
 .rp-readout {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 12px;
   color: var(--accent);
 }
 
@@ -894,11 +959,11 @@ canvas.webgl {
   color: var(--accent);
 }
 .rp-perf-lbl {
-  font-size: 9px;
-  letter-spacing: 0.1em;
+  font-size: 10px;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--text-dim);
-  margin-top: 2px;
+  color: var(--text-secondary);
+  margin-top: 3px;
 }
 
 /* Hide lil-gui if it somehow renders */
@@ -953,10 +1018,10 @@ canvas.webgl {
   margin-bottom: 10px;
 }
 .about-title {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 700;
   color: var(--text-primary);
-  letter-spacing: 0.04em;
+  letter-spacing: 0.03em;
 }
 .about-version {
   font-size: 9px;
@@ -965,15 +1030,15 @@ canvas.webgl {
   margin-top: 2px;
 }
 .about-desc {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--text-secondary);
-  line-height: 1.6;
+  line-height: 1.65;
 }
 .about-link {
   display: flex;
   align-items: center;
   gap: 7px;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--accent);
   text-decoration: none;
   padding: 4px 0;
@@ -986,7 +1051,7 @@ canvas.webgl {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--text-secondary);
 }
 .about-key {
@@ -1017,7 +1082,7 @@ canvas.webgl {
 ───────────────────────────────────────── */
 .sb-credit {
   color: var(--text-dim);
-  font-size: 10px;
+  font-size: 11px;
 }
 .sb-credit a {
   color: var(--accent);
@@ -1073,7 +1138,7 @@ canvas.webgl {
   font-weight: 600;
 }
 .about-ip-footer {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--text-dim);
   line-height: 1.6;
   padding: 8px;
