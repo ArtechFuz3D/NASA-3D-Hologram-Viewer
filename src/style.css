@@ -25,12 +25,12 @@
   ────────────────────────────────────────────────────────────────── */
 
   /* UI font options — uncomment one */
-  /* --font-ui: 'Exo 2', sans-serif;             ← ACTIVE — geometric, technical, excellent legibility */
-  --font-ui: 'Titillium Web', sans-serif;     /* sharp, condensed, aerospace-report feel
+  --font-ui: 'Exo 2', sans-serif;             /* ← ACTIVE — geometric, technical, excellent legibility */
+  /* --font-ui: 'Titillium Web', sans-serif;     sharp, condensed, aerospace-report feel */
   /* --font-ui: 'Space Grotesk', sans-serif;     modern geometric, space-themed, very clean */
   /* --font-ui: 'Outfit', sans-serif;            friendly geometric, clean at all sizes */
   /* --font-ui: 'DM Sans', sans-serif;           neutral, ultra-readable, lets UI breathe */
-
+  /* --font-ui: 'Rajdhani', sans-serif;          original — angular, dense, military-HUD feel */
 
   /* Mono font options — uncomment one */
   --font-mono: 'DM Mono', monospace;           /* ← ACTIVE — understated, very readable for values */
@@ -49,7 +49,9 @@ html, body {
   background: var(--bg-base);
   color: var(--text-primary);
   font-family: var(--font-ui);
-  font-size: 14px;
+  font-size: 42px;
+  font-size: larger;
+  /* font-variant: small-caps; */
   -webkit-font-smoothing: antialiased;
 }
 
@@ -77,10 +79,30 @@ input  { font-family: var(--font-ui); color: inherit; background: none; border: 
 .toolbar-center{ display: flex; align-items: center; justify-content: center; flex: 1; }
 .toolbar-right { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
 
-.app-logo {
-  display: flex; align-items: center; gap: 8px;
-  font-size: 13px; font-weight: 700; letter-spacing: 0.10em;
+/* .app-logo {
+  display: flex; 
+  align-items: center; 
+  gap: 8px;
+  font-size: 13px; 
+  font-weight: 700; 
+  letter-spacing: 0.10em;
   color: var(--accent); white-space: nowrap;
+} */
+ .app-logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.10em;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+.app-logo-icon {
+  width: 20px;
+  height: 20px;
+  display: block; /* removes inline baseline weirdness */
 }
 
 .toolbar-menu { display: flex; gap: 2px; }
@@ -124,10 +146,17 @@ input  { font-family: var(--font-ui); color: inherit; background: none; border: 
 .fps-label { color: var(--text-dim); font-size: 10px; letter-spacing: 0.08em; }
 
 .user-avatar {
-  width: 26px; height: 26px; border-radius: 50%;
-  overflow: hidden; border: 1px solid var(--border-bright);
+  width: 32px; 
+  height: 32px; 
+  border-radius: 50%;
+  overflow: hidden; 
+  border: 1px solid var(--border-bright);
   background: var(--bg-hover);
-  display: flex; align-items: center; justify-content: center;
+  display: flex; 
+  align-items: center; 
+  justify-content: center;
+  /* margin-left: 1rem; */
+  /* margin-right: .5rem; */
 }
 .user-avatar img { width: 100%; height: 100%; object-fit: cover; }
 
@@ -285,6 +314,26 @@ input  { font-family: var(--font-ui); color: inherit; background: none; border: 
   font-size: 10px; font-family: var(--font-mono);
   color: var(--text-dim); text-transform: uppercase;
 }
+
+/* Favourite heart button — top-right corner of card */
+.card-fav {
+  position: absolute;
+  top: 5px; right: 5px;
+  width: 20px; height: 20px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 3px;
+  color: var(--text-dim);
+  opacity: 0;
+  transition: opacity 0.15s, color 0.15s, background 0.15s;
+  z-index: 2;
+}
+.model-card:hover .card-fav { opacity: 1; }
+.card-fav:hover { color: #ff6b8a; background: rgba(255,107,138,0.1); }
+.card-fav.on {
+  opacity: 1;
+  color: #ff6b8a;
+}
+.card-fav.on svg { fill: #ff6b8a; stroke: #ff6b8a; }
 
 /* ─────────────────────────────────────────
    VIEWPORT

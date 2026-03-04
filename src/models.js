@@ -194,51 +194,105 @@ const CAT_KEYWORDS = {
     telescopes: /hubble|telescope|webb/i,
 }
 
+import { loadFavourites, toggleFavourite, isFavourite } from './favourites.js'
+
 let allModels      = []
 let activeCategory = 'all'
+let activeTab      = 'models'   // 'models' | 'favorites'
 let searchQuery    = ''
 let selectedCard   = null
 
+// ── Build one model card ──────────────────────────────────────────
+function makeCard(m) {
+    const ext    = m.path.split('.').pop().toUpperCase()
+    const faved  = isFavourite(m.path)
+    const card   = document.createElement('div')
+    card.className = 'model-card'
+    card.innerHTML = `
+        <button class="card-fav${faved ? ' on' : ''}" title="${faved ? 'Remove from Saved' : 'Save model'}" aria-label="Favourite">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="${faved ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+            </svg>
+        </button>
+        <div class="model-icon">${getIcon(m.name)}</div>
+        <div class="model-label">${m.name.replace(/\.[^.]+$/, '')}</div>
+        <div class="model-ext">${ext}</div>
+    `
+
+    // Fav button — stop propagation so it doesn't also load the model
+    const favBtn = card.querySelector('.card-fav')
+    favBtn.addEventListener('click', e => {
+        e.stopPropagation()
+        const nowFaved = toggleFavourite(m)
+        favBtn.classList.toggle('on', nowFaved)
+        favBtn.title = nowFaved ? 'Remove from Saved' : 'Save model'
+        favBtn.querySelector('svg').setAttribute('fill', nowFaved ? 'currentColor' : 'none')
+        // Update the saved tab badge count
+        updateSavedBadge()
+        // If we're on the saved tab and unfaved, remove card immediately
+        if (activeTab === 'favorites' && !nowFaved) {
+            card.remove()
+            if (!modelGrid.querySelector('.model-card')) renderGrid()
+        }
+        // If we're on the models tab, re-sync heart on any matching saved-tab card
+    })
+
+    // Card click — load model
+    card.addEventListener('click', () => {
+        if (selectedCard) selectedCard.classList.remove('selected')
+        card.classList.add('selected')
+        selectedCard = card
+        if (modelNameDisplay) modelNameDisplay.textContent = m.name.replace(/\.[^.]+$/, '').toUpperCase()
+        loadModel(BASE_RAW + m.path)
+    })
+
+    return card
+}
+
+// ── Render the grid for current tab + filters ─────────────────────
 function renderGrid() {
     if (!modelGrid) return
     modelGrid.innerHTML = ''
-    const filtered = allModels.filter(m => {
+
+    const source = activeTab === 'favorites' ? loadFavourites() : allModels
+
+    const filtered = source.filter(m => {
         const n  = m.name.toLowerCase()
-        const re = CAT_KEYWORDS[activeCategory]
-        if (re && !re.test(n)) return false
+        if (activeTab === 'models') {
+            const re = CAT_KEYWORDS[activeCategory]
+            if (re && !re.test(n)) return false
+        }
         if (searchQuery && !n.includes(searchQuery)) return false
         return true
     })
+
     if (!filtered.length) {
-        modelGrid.innerHTML = '<div class="grid-loading"><div style="color:var(--text-dim);font-size:11px">No models match</div></div>'
+        const msg = activeTab === 'favorites'
+            ? 'No saved models yet.<br>Click ♥ on any model to save it.'
+            : 'No models match'
+        modelGrid.innerHTML = `<div class="grid-loading"><div style="color:var(--text-dim);font-size:12px;text-align:center;line-height:1.6">${msg}</div></div>`
         return
     }
-    filtered.forEach(m => {
-        const ext  = m.path.split('.').pop().toUpperCase()
-        const card = document.createElement('div')
-        card.className = 'model-card'
-        card.innerHTML = `
-            <div class="model-icon">${getIcon(m.name)}</div>
-            <div class="model-label">${m.name.replace(/\.[^.]+$/, '')}</div>
-            <div class="model-ext">${ext}</div>
-        `
-        card.addEventListener('click', () => {
-            if (selectedCard) selectedCard.classList.remove('selected')
-            card.classList.add('selected')
-            selectedCard = card
-            if (modelNameDisplay) modelNameDisplay.textContent = m.name.replace(/\.[^.]+$/, '').toUpperCase()
-            loadModel(BASE_RAW + m.path)
-        })
-        modelGrid.appendChild(card)
-    })
+
+    filtered.forEach(m => modelGrid.appendChild(makeCard(m)))
+}
+
+// ── Saved badge on the SAVED tab button ──────────────────────────
+function updateSavedBadge() {
+    const savedTab = document.querySelector('.stab[data-tab="favorites"]')
+    if (!savedTab) return
+    const count = loadFavourites().length
+    savedTab.textContent = count > 0 ? `Saved (${count})` : 'Saved'
 }
 
 function populateGrid(models) {
     allModels = models
     if (sbModelCount) sbModelCount.textContent = `${models.length} models`
     renderGrid()
+    updateSavedBadge()
 }
 
+// ── Search ────────────────────────────────────────────────────────
 if (searchInput) {
     searchInput.addEventListener('input', e => {
         searchQuery = e.target.value.toLowerCase().trim()
@@ -246,6 +300,22 @@ if (searchInput) {
     })
 }
 
+// ── Sidebar tabs (Models / Saved) ─────────────────────────────────
+document.querySelectorAll('.stab').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('.stab').forEach(b => b.classList.remove('active'))
+        btn.classList.add('active')
+        activeTab = btn.dataset.tab   // 'models' | 'favorites'
+
+        // Show/hide category row — not relevant for saved tab
+        const catRow = document.querySelector('.category-row')
+        if (catRow) catRow.style.display = activeTab === 'favorites' ? 'none' : ''
+
+        renderGrid()
+    })
+})
+
+// ── Category tabs ─────────────────────────────────────────────────
 document.querySelectorAll('.ctab').forEach(btn => {
     btn.addEventListener('click', () => {
         document.querySelectorAll('.ctab').forEach(b => b.classList.remove('active'))

@@ -6,6 +6,7 @@
 
 import { scene, renderer, camera, controls } from './staging.js'
 import { hologramMaterial, applyMaterialMode } from './materials.js'
+import * as Mat from './materials.js'
 import { envState, ensureHDRI, applyEnvironment, planetIframe } from './environment.js'
 import { fetchNASAModels, setStatus, modelNameDisplay } from './models.js'
 import { motionState, tickMotion } from './motion.js'
@@ -23,21 +24,38 @@ const fpsValue = document.getElementById('fps-value')
 // ─────────────────────────────────────────
 const wire = (id, fn) => { const el = document.getElementById(id); if (el) el.addEventListener('click', fn) }
 
-wire('btn-top',   () => { camera.position.set(0, 15, 0); controls.target.set(0,0,0); controls.update() })
-wire('btn-front', () => { camera.position.set(0, 0, 15); controls.target.set(0,0,0); controls.update() })
-wire('btn-side',  () => { camera.position.set(15, 0, 0); controls.target.set(0,0,0); controls.update() })
-wire('btn-iso',   () => { camera.position.set(5, 3, 5);  controls.target.set(0,0,0); controls.update() })
-wire('btn-reset', () => { camera.position.set(5, 3, 5);  controls.target.set(0,0,0); controls.update() })
+// ── Camera view buttons — mutually exclusive active state ─────────
+const VIEW_BTNS = ['btn-top', 'btn-front', 'btn-side', 'btn-iso']
+function setViewActive(id) {
+    VIEW_BTNS.forEach(bid => document.getElementById(bid)?.classList.toggle('active', bid === id))
+}
+
+wire('btn-top',   () => { camera.position.set(0, 15, 0.001); controls.target.set(0,0,0); controls.update(); setViewActive('btn-top') })
+wire('btn-front', () => { camera.position.set(0, 0, 15);     controls.target.set(0,0,0); controls.update(); setViewActive('btn-front') })
+wire('btn-side',  () => { camera.position.set(15, 0, 0);     controls.target.set(0,0,0); controls.update(); setViewActive('btn-side') })
+wire('btn-iso',   () => { camera.position.set(5, 3, 5);      controls.target.set(0,0,0); controls.update(); setViewActive('btn-iso') })
+wire('btn-reset', () => { camera.position.set(5, 3, 5);      controls.target.set(0,0,0); controls.update(); setViewActive('btn-iso') })
+
+// ISO is the default active view
+setViewActive('btn-iso')
+
+// ── Toolbar material toggles ──────────────────────────────────────
+// Read Mat.materialMode (live ES module binding) for current mode.
+// preHoloMode remembers what was active before holo was turned on,
+// so clicking holo again returns to that mode, not always 'original'.
+let preHoloMode = 'original'
 
 wire('btn-wireframe', () => {
-    const next = Models.materialMode === 'wireframe' ? 'hologram' : 'wireframe'
+    const next = Mat.materialMode === 'wireframe' ? 'hologram' : 'wireframe'
     applyMaterialMode(next, Models.customModel)
-    document.getElementById('btn-wireframe').classList.toggle('active', next === 'wireframe')
 })
 wire('btn-hologram', () => {
-    const next = Models.materialMode === 'hologram' ? 'original' : 'hologram'
-    applyMaterialMode(next, Models.customModel)
-    document.getElementById('btn-hologram').classList.toggle('active-accent', next === 'hologram')
+    if (Mat.materialMode === 'hologram') {
+        applyMaterialMode(preHoloMode, Models.customModel)
+    } else {
+        preHoloMode = Mat.materialMode   // remember current before switching
+        applyMaterialMode('hologram', Models.customModel)
+    }
 })
 wire('btn-autorotate', () => {
     controls.autoRotate = !controls.autoRotate
